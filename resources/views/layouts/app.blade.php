@@ -67,7 +67,7 @@
             </li>
             <li>
                 <a href="{{ route('aktivitas.index') }}" class="{{ request()->routeIs('aktivitas.index') ? 'active' : '' }}">
-                    <i class="fa-solid fa-clock-rotate-left"></i> Aktivitas
+                    <i class="fa-solid fa-clock-rotate-left"></i> Aktivitas Riwayat
                 </a>
             </li>
         </ul>
