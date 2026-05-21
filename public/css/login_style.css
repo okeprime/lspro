@@ -1,0 +1,203 @@
+/* public/css/login_style.css */
+
+/* Import Font Poppins */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+/* Reset Dasar */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Poppins', sans-serif;
+}
+
+body {
+    display: flex;
+    height: 100vh;
+    overflow: hidden; /* Mencegah scroll bar ganda di seluruh halaman layar penuh */
+    background-color: #ffffff;
+}
+
+/* =========================================================
+   BAGIAN KIRI (AREA FORMULIR LOGIN & REGISTER)
+   ========================================================= */
+.auth-left {
+    flex: 1; /* Proporsi lebar bagian kiri (50%) */
+    padding: 40px 80px;
+    background: #ffffff;
+    overflow-y: auto; /* Memungkinkan scroll khusus di area form jika isiannya banyak (seperti di halaman Register) */
+    display: flex;
+    flex-direction: column;
+}
+
+/* Kustomisasi Scrollbar Khusus untuk Area Form agar elegan */
+.auth-left::-webkit-scrollbar {
+    width: 6px;
+}
+.auth-left::-webkit-scrollbar-track {
+    background: #f8fafc; 
+}
+.auth-left::-webkit-scrollbar-thumb {
+    background: #cbd5e1; 
+    border-radius: 10px;
+}
+.auth-left::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8; 
+}
+
+/* Header Kop Kementan */
+.auth-header {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 35px;
+}
+
+.auth-header img {
+    width: 55px;
+    height: auto;
+}
+
+.auth-header h2 {
+    font-size: 15px;
+    color: #1e293b;
+    line-height: 1.4;
+    font-weight: 700;
+}
+
+/* Judul Halaman (Selamat Datang / Buat Akun) */
+.auth-title {
+    font-size: 28px;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 8px;
+}
+
+.auth-subtitle {
+    font-size: 14px;
+    color: #64748b;
+    margin-bottom: 35px;
+    line-height: 1.6;
+}
+
+/* =========================================================
+   INPUT FORM STYLING
+   ========================================================= */
+.form-group {
+    margin-bottom: 22px;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #334155;
+    font-size: 13.5px;
+}
+
+/* Pembungkus Input untuk Icon FontAwesome */
+.input-icon-wrapper {
+    position: relative;
+}
+
+.input-icon-wrapper i {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    font-size: 15px;
+}
+
+.form-control {
+    width: 100%;
+    padding: 14px 15px 14px 45px; /* Padding kiri 45px memberikan ruang agar teks tidak menabrak icon */
+    border: 1.5px solid #e2e8f0;
+    border-radius: 10px;
+    font-size: 14px;
+    color: #1e293b;
+    background-color: #f8fafc;
+    transition: all 0.3s ease;
+    outline: none;
+}
+
+.form-control::placeholder {
+    color: #94a3b8;
+}
+
+.form-control:focus {
+    border-color: #2563eb;
+    background-color: #ffffff;
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+}
+
+/* Tombol Submit Utama */
+.btn-auth {
+    width: 100%;
+    background: #2563eb;
+    color: white;
+    border: none;
+    padding: 16px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 15px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-top: 15px;
+    box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2);
+}
+
+.btn-auth:hover {
+    background: #1d4ed8;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 15px rgba(37, 99, 235, 0.3);
+}
+
+/* =========================================================
+   BAGIAN KANAN (GAMBAR GEDUNG BACKGROUND)
+   ========================================================= */
+.auth-right {
+    flex: 1.2; /* Proporsi lebar sedikit lebih besar dari form kiri */
+    background: url('/assets/bg-login-reg.jpg') center/cover no-repeat;
+    position: relative;
+    border-top-left-radius: 35px; /* Lengkungan khas di sebelah kiri gambar */
+    border-bottom-left-radius: 35px;
+    box-shadow: -10px 0 25px rgba(0,0,0,0.06);
+}
+
+/* Efek gradien tipis di atas gambar agar lebih menyatu */
+.auth-right::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(to right, rgba(255,255,255,0.05), rgba(0,0,0,0.15));
+    border-top-left-radius: 35px;
+    border-bottom-left-radius: 35px;
+}
+
+/* =========================================================
+   RESPONSIVE DESIGN (HP & TABLET)
+   ========================================================= */
+@media (max-width: 992px) {
+    .auth-right {
+        display: none; /* Sembunyikan gambar gedung di layar HP/Tablet kecil */
+    }
+    .auth-left {
+        padding: 40px;
+    }
+}
+
+@media (max-width: 576px) {
+    .auth-left {
+        padding: 30px 20px; /* Kurangi jarak pinggir untuk layar HP yang sangat kecil */
+    }
+    .auth-header h2 {
+        font-size: 13px;
+    }
+    .auth-title {
+        font-size: 24px;
+    }
+}
