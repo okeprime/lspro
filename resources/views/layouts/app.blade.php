@@ -102,7 +102,7 @@
                 </li>
                 <li>
                     <a class="dropdown-item d-flex align-items-center gap-2 py-2" href="{{ route('profile.index') }}" style="font-size: 13px; color: #334155;">
-                        <i class="fa-solid fa-user-gear text-secondary" style="width: 16px;"></i> Pengaturan Profile
+                        <i class="fa-solid fa-user-gear text-secondary" style="width: 16px;"></i> Pengaturan Profil
                     </a>
                 </li>
                 <li><hr class="dropdown-divider my-1"></li>
