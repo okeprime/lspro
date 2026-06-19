@@ -3,6 +3,15 @@
 @section('title', 'Evaluasi Kelengkapan Dokumen - Form 7.2-4')
 
 @section('content')
+@php
+    $statusNormalized = \App\Support\LsproType5Workflow::normalize($pengajuan->status);
+    $isTU = str_contains(strtolower(auth()->user()->sub_role ?? ''), 'tatausaha') || strtolower(auth()->user()->role) === 'admin';
+    $isAudit = str_contains(strtolower(auth()->user()->sub_role ?? ''), 'audit') || strtolower(auth()->user()->role) === 'admin';
+    $show724 = in_array($statusNormalized, ['evaluasi_724_tu', 'evaluasi_724_audit', 'menunggu_ttd', 'billing', 'proses_evaluasi', 'proses_audit', 'keputusan', 'selesai']);
+    $disableEvaluasi = !($statusNormalized === 'evaluasi_724_tu' && $isTU);
+    $disableKebenaran = !($statusNormalized === 'evaluasi_724_audit' && $isAudit);
+@endphp
+
 <div class="container py-4">
     <div class="mb-4">
         <a href="{{ url('/aktivitas') }}" class="btn btn-sm btn-light border text-secondary mb-2" style="border-radius: 8px;">
@@ -25,7 +34,11 @@
         $savedCeklis = json_decode($pengajuan->ceklis_dokumen, true) ?? [];
     @endphp
 
+        @if($statusNormalized === 'diajukan')
+    <form action="{{ route('admin.pengajuan.terima_awal', $pengajuan->id) }}" method="POST">
+    @else
     <form action="{{ route('admin.pengajuan.ceklis', $pengajuan->id) }}" method="POST">
+    @endif
         @csrf
         <div class="row g-4">
             
@@ -134,21 +147,21 @@
                                         <td>{{ $dokumen }}</td>
                                         
                                         <td class="text-center">
-                                            <input class="form-check-input border-secondary" type="radio" name="ceklis[{{$i}}][evaluasi]" value="lengkap" {{ $valEvaluasi == 'lengkap' ? 'checked' : '' }}>
+                                            <input class="form-check-input border-secondary" type="radio" name="ceklis[{{$i}}][evaluasi]" value="lengkap" {{ $valEvaluasi == 'lengkap' ? 'checked' : '' }} {{ $disableEvaluasi ? 'disabled' : '' }}>
                                         </td>
                                         <td class="text-center">
-                                            <input class="form-check-input border-secondary" type="radio" name="ceklis[{{$i}}][evaluasi]" value="tidak" {{ $valEvaluasi == 'tidak' ? 'checked' : '' }}>
+                                            <input class="form-check-input border-secondary" type="radio" name="ceklis[{{$i}}][evaluasi]" value="tidak" {{ $valEvaluasi == 'tidak' ? 'checked' : '' }} {{ $disableEvaluasi ? 'disabled' : '' }}>
                                         </td>
                                         
                                         <td class="text-center">
-                                            <input class="form-check-input border-secondary" type="radio" name="ceklis[{{$i}}][kebenaran]" value="benar" {{ $valKebenaran == 'benar' ? 'checked' : '' }}>
+                                            <input class="form-check-input border-secondary" type="radio" name="ceklis[{{$i}}][kebenaran]" value="benar" {{ $valKebenaran == 'benar' ? 'checked' : '' }} {{ $disableKebenaran ? 'disabled' : '' }}>
                                         </td>
                                         <td class="text-center">
-                                            <input class="form-check-input border-secondary" type="radio" name="ceklis[{{$i}}][kebenaran]" value="tidak" {{ $valKebenaran == 'tidak' ? 'checked' : '' }}>
+                                            <input class="form-check-input border-secondary" type="radio" name="ceklis[{{$i}}][kebenaran]" value="tidak" {{ $valKebenaran == 'tidak' ? 'checked' : '' }} {{ $disableKebenaran ? 'disabled' : '' }}>
                                         </td>
                                         
                                         <td>
-                                            <input type="text" class="form-control form-control-sm" name="ceklis[{{$i}}][keterangan]" value="{{ $valKet }}" placeholder="Ket...">
+                                            <input type="text" class="form-control form-control-sm" name="ceklis[{{$i}}][keterangan]" value="{{ $valKet }}" placeholder="Ket..." {{ ($disableEvaluasi && $disableKebenaran) ? 'disabled' : '' }}>
                                         </td>
                                     </tr>
                                 @endforeach
@@ -156,6 +169,11 @@
                         </table>
                     </div>
                 </div>
+                @else
+                <div class="alert alert-info mt-3" style="border-radius: 12px; font-size: 14px;">
+                    <i class="bi bi-info-circle-fill me-2"></i> Formulir 7.2-4 / Daftar Ceklis belum tersedia karena Klien belum mengunggah dokumen kelengkapan.
+                </div>
+                @endif
             </div>
 
             <div class="col-lg-4">
@@ -233,6 +251,11 @@
                         Sistem Informasi Sertifikasi Produk
                     </div>
                 </div>
+                @else
+                <div class="alert alert-info mt-3" style="border-radius: 12px; font-size: 14px;">
+                    <i class="bi bi-info-circle-fill me-2"></i> Formulir 7.2-4 / Daftar Ceklis belum tersedia karena Klien belum mengunggah dokumen kelengkapan.
+                </div>
+                @endif
             </div>
 
         </div>

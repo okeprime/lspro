@@ -1,167 +1,125 @@
 @extends('layouts.app')
 
-@section('title', 'Aktivitas Permohonan Sertifikasi')
+@section('title', 'Aktivitas – Riwayat Pengajuan')
 
 @section('content')
-<div class="container py-4">
-    
-    @php
-        // Deteksi role user login saat ini
-        $userRole = auth()->check() ? trim(strtolower(auth()->user()->role)) : 'guest';
-        $isAdminTu = ($userRole === 'admin' || $userRole === 'tu' || str_contains($userRole, 'tu') || str_contains($userRole, 'admin') || str_contains($userRole, 'petugas'));
-    @endphp
+<div class="container-fluid py-4" style="max-width: 1200px;">
 
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    {{-- Header --}}
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
         <div>
-            <h2 style="color: #1e293b; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 4px;">
-                {{ $isAdminTu ? 'Manajemen Aktivitas (Akses internal TU)' : 'Aktivitas Permohonan' }}
-            </h2>
-            <p class="text-muted small mb-0">
-                {{ $isAdminTu ? 'Daftar seluruh masuk permohonan sertifikasi dari klien untuk dievaluasi.' : 'Pantau riwayat proses, status evaluasi, dan unduh berkas FORM 7.2-4 LS Pro Anda.' }}
+            <h2 style="color: #1e293b; font-weight: 800; font-size: 24px; margin-bottom: 4px;" id="aktivitas-page-title">{{ $pageTitle ?? 'Aktivitas' }}</h2>
+            <p style="color: #64748b; font-size: 13px; margin: 0;">
+                {{ $pageDesc ?? 'Pusat riwayat pengajuan Anda.' }}
             </p>
         </div>
-        
-        @if($isAdminTu)
-            <a href="{{ url('/admin/dashboard') }}" class="btn btn-sm btn-light border text-secondary" style="border-radius: 8px;">
-                <i class="bi bi-speedometer2"></i> Dashboard Admin
-            </a>
-        @else
-            <a href="{{ url('/dashboard') }}" class="btn btn-sm btn-light border text-secondary" style="border-radius: 8px;">
-                <i class="bi bi-house-door"></i> Kembali ke Beranda
+        @if(!$isInternal)
+            <a href="{{ route('pengajuan.index') }}" class="btn btn-success fw-semibold px-4 shadow-sm" style="border-radius: 10px; font-size: 14px;" id="btn-pengajuan-baru">
+                <i class="fa-solid fa-plus me-1"></i> Pengajuan Baru
             </a>
         @endif
     </div>
 
-    <div class="card border-0 shadow-sm" style="border-radius: 16px; overflow: hidden; background: white;">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0" style="font-size: 13.5px;">
-                <thead class="table-light border-bottom text-uppercase" style="font-size: 11.5px; font-weight: 700;">
-                    <tr>
-                        <th class="ps-4 py-3" width="15%">No. Permohonan</th>
-                        <th class="py-3" width="30%">Komoditas / Merek</th>
-                        <th class="py-3 text-center" width="15%">Tanggal Masuk</th>
-                        <th class="py-3 text-center" width="20%">Status Prosedur</th>
-                        <th class="pe-4 py-3 text-end" width="20%">Aksi Berkas</th>
-                    </tr>
-                </thead>
-                <tbody style="color: #334155;">
-                    @forelse($pengajuans as $p)
-                        @php
-                            // 1. Ekstraksi Data JSON / Array Lapangan Form
-                            $rawForm = $p->parsed_form ?? $p->data_form;
-                            if (is_array($rawForm)) {
-                                $formData = $rawForm;
-                            } elseif (is_string($rawForm)) {
-                                $formData = json_decode($rawForm, true) ?? [];
-                            } else {
-                                $formData = [];
-                            }
-
-                            // 2. Mapping Penamaan Produk
-                            $namaPupuk = $formData['nama_pupuk'] ?? ($formData['nama_produk'] ?? ($formData['jenis_pupuk'] ?? 'Sertifikasi Pupuk'));
-                            $merekRaw = $formData['merek_pupuk'] ?? ($formData['merek'] ?? '');
-                            $merekPupuk = $merekRaw ? ' (' . $merekRaw . ')' : '';
-                            $standarSni = $formData['standar_sni'] ?? 'SNI Terbaru';
-                            
-                            // 3. Normalisasi Status
-                            $statusBerkas = trim(strtolower($p->status));
-                            
-                            // 4. Cek Keberadaan File Utama
-                            $fileExist = $p->file_permohonan && file_exists(storage_path('app/public/permohonan/' . $p->file_permohonan));
-                        @endphp
-                        
-                        <tr style="border-bottom: 1px solid #f1f5f9;">
-                            <td class="ps-4 py-3 font-monospace fw-bold text-secondary">
-                                #{{ str_pad($p->id, 5, '0', STR_PAD_LEFT) }}
-                            </td>
-                            
-                            <td class="py-3">
-                                <div class="fw-bold text-dark" style="font-size: 14px;">
-                                    {{ $namaPupuk }}{{ $merekPupuk }}
-                                </div>
-                                <div class="text-muted small d-flex align-items-center gap-2 mt-0.5">
-                                    <span class="text-success font-monospace" style="font-size: 11px;">
-                                        <i class="bi bi-bookmark-fill"></i> {{ $standarSni }}
-                                    </span>
-                                    @if($isAdminTu)
-                                        <span class="text-dark fw-bold" style="font-size: 11px; background: #e2e8f0; padding: 1px 6px; border-radius: 4px;">
-                                            <i class="bi bi-person"></i> Pengirim: {{ $p->user->name ?? 'Klien (ID: '.$p->user_id.')' }}
-                                        </span>
-                                    @endif
-                                </div>
-                            </td>
-                            
-                            <td class="py-3 text-center text-muted">
-                                {{ $p->created_at ? $p->created_at->translatedFormat('d M Y') : '-' }}
-                            </td>
-                            
-                            <td class="py-3 text-center">
-                                @if($statusBerkas == 'diajukan' || $statusBerkas == 'pending' || $statusBerkas == 'terkirim')
-                                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2.5 py-1.5" style="border-radius: 6px; font-weight: 600;">
-                                        <i class="bi bi-clock-history me-1"></i> Menunggu Verifikasi TU
-                                    </span>
-                                @elseif($statusBerkas == 'perbaikan' || $statusBerkas == 'ditolak')
-                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2.5 py-1.5" style="border-radius: 6px; font-weight: 600;">
-                                        <i class="bi bi-exclamation-triangle me-1"></i> Butuh Perbaikan Berkas
-                                    </span>
-                                @elseif($statusBerkas == 'disetujui_tu' || $statusBerkas == 'lengkap')
-                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1.5" style="border-radius: 6px; font-weight: 600;">
-                                        <i class="bi bi-patch-check-fill me-1"></i> Berkas Lengkap
-                                    </span>
-                                @else
-                                    <span class="badge bg-light text-dark border px-2.5 py-1.5" style="border-radius: 6px; font-weight: 600;">
-                                        {{ strtoupper($p->status) }}
-                                    </span>
-                                @endif
-                            </td>
-                            
-                            <td class="pe-4 py-3 text-end">
-                                <div class="d-inline-flex gap-1.5 align-items-center">
-                                    
-                                    @if($isAdminTu)
-                                        @if($statusBerkas == 'diajukan' || $statusBerkas == 'pending' || $statusBerkas == 'terkirim')
-                                            <a href="{{ url('/admin/pengajuan/' . $p->id . '/ceklis') }}" class="btn btn-sm px-3 fw-bold shadow-sm text-white" style="border-radius: 6px; font-size: 12px; background-color: #f59e0b; border: none;">
-                                                <i class="bi bi-clipboard-check me-1"></i> Evaluasi TU
-                                            </a>
-                                        @endif
-                                    @endif
-
-                                    @if(!$isAdminTu && ($statusBerkas == 'perbaikan' || $statusBerkas == 'ditolak'))
-                                        <a href="{{ url('/pengajuan/edit/' . $p->id) }}" class="btn btn-sm btn-danger px-2.5 fw-bold shadow-sm" style="border-radius: 6px; font-size: 12px;">
-                                            <i class="bi bi-pencil-square"></i> Perbaiki Dokumen
-                                        </a>
-                                    @endif
-
-                                    @if($statusBerkas == 'disetujui_tu' || $statusBerkas == 'lengkap')
-                                        <a href="{{ url('/admin/pengajuan/' . $p->id . '/ceklis') }}" class="btn btn-sm btn-outline-success px-2.5 shadow-sm" target="_blank" style="border-radius: 6px; font-size: 12px; font-weight: 600;">
-                                            <i class="bi bi-printer"></i> Hasil Form 7.2-4
-                                        </a>
-                                    @endif
-
-                                    @if($fileExist)
-                                        <a href="{{ asset('storage/permohonan/' . $p->file_permohonan) }}" class="btn btn-sm btn-light border text-secondary px-2 shadow-sm" target="_blank" style="border-radius: 6px;">
-                                            <i class="bi bi-download"></i>
-                                        </a>
-                                    @else
-                                        <button class="btn btn-sm btn-light border text-muted px-2" disabled style="border-radius: 6px; opacity: 0.5;">
-                                            <i class="bi bi-file-earmark-x"></i>
-                                        </button>
-                                    @endif
-                                </div>
-                            </td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="5" class="text-center py-5 text-muted">
-                                <div class="mb-2" style="font-size: 28px;"><i class="bi bi-folder-x text-secondary"></i></div>
-                                <h6 class="fw-bold text-dark mb-1">Belum Ada Aktivitas Permohonan</h6>
-                                <p class="small text-muted mb-0">Tidak ditemukan draf formulir permohonan sertifikasi pupuk di sistem.</p>
-                            </td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
+    {{-- Flash Messages --}}
+    @if(session('success'))
+        <div class="alert border-0 shadow-sm mb-4 d-flex align-items-center gap-3" style="border-radius: 12px; background: #dcfce7; color: #15803d; font-size: 14px;">
+            <i class="fa-solid fa-circle-check fs-5"></i>
+            <span>{{ session('success') }}</span>
         </div>
-    </div>
+    @endif
+    @if(session('error'))
+        <div class="alert border-0 shadow-sm mb-4 d-flex align-items-center gap-3" style="border-radius: 12px; background: #fee2e2; color: #991b1b; font-size: 14px;">
+            <i class="fa-solid fa-circle-exclamation fs-5"></i>
+            <span>{{ session('error') }}</span>
+        </div>
+    @endif
+
+    {{-- ================================================================
+         TAB CONTENT: SERTIFIKASI
+    ================================================================ --}}
+    {{-- TAB CONTENT: SERTIFIKASI --}}
+    @if($activeTab === 'sertifikasi')
+        @forelse($list as $item)
+            @include('aktivitas._pengajuan_card', ['item' => $item])
+        @empty
+            @include('aktivitas._empty_state', [
+                'icon' => 'fa-award',
+                'title' => 'Belum ada pengajuan sertifikasi.',
+                'desc' => 'Mulai proses sertifikasi produk Anda sekarang.',
+                'link' => route('pengajuan.sertifikasi'),
+                'linkLabel' => 'Ajukan Sertifikasi Baru',
+                'isInternal' => $isInternal,
+            ])
+        @endforelse
+    @endif
+
+    {{-- TAB CONTENT: RESERTIFIKASI --}}
+    @if($activeTab === 'resertifikasi')
+        @forelse($list as $item)
+            @include('aktivitas._pengajuan_card', ['item' => $item])
+        @empty
+            @include('aktivitas._empty_state', [
+                'icon' => 'fa-rotate',
+                'title' => 'Belum ada pengajuan resertifikasi.',
+                'desc' => 'Resertifikasi dilakukan untuk memperpanjang sertifikat SPPT SNI yang sudah habis masa berlakunya.',
+                'link' => route('pengajuan.resertifikasi'),
+                'linkLabel' => 'Ajukan Resertifikasi',
+                'isInternal' => $isInternal,
+            ])
+        @endforelse
+    @endif
+
+    {{-- TAB CONTENT: BANDING --}}
+    @if($activeTab === 'banding')
+        @forelse($list as $b)
+            @include('aktivitas._banding_card', ['b' => $b])
+        @empty
+            @include('aktivitas._empty_state', [
+                'icon' => 'fa-gavel',
+                'title' => 'Belum ada riwayat banding.',
+                'desc' => 'Ajukan banding atas keputusan sertifikasi melalui menu Banding & Laporan.',
+                'link' => route('banding.index'),
+                'linkLabel' => 'Ajukan Banding',
+                'isInternal' => $isInternal,
+            ])
+        @endforelse
+    @endif
+
+    {{-- TAB CONTENT: KELUHAN --}}
+    @if($activeTab === 'keluhan')
+        @forelse($list as $b)
+            @include('aktivitas._banding_card', ['b' => $b])
+        @empty
+            @include('aktivitas._empty_state', [
+                'icon' => 'fa-comment-dots',
+                'title' => 'Belum ada riwayat keluhan.',
+                'desc' => 'Ajukan keluhan atau laporan mengenai pelayanan LSPro.',
+                'link' => route('banding.index'),
+                'linkLabel' => 'Ajukan Keluhan',
+                'isInternal' => $isInternal,
+            ])
+        @endforelse
+    @endif
+
 </div>
+
+{{-- STEPPER CSS --}}
+<style>
+.lspro-stepper-wrap { overflow-x: auto; padding-bottom: 4px; }
+.lspro-stepper { display: flex; align-items: center; min-width: max-content; gap: 0; padding: 4px 0; }
+.lspro-step-item { display: flex; align-items: center; }
+.lspro-connector { width: 36px; height: 2px; background: #e2e8f0; flex-shrink: 0; transition: background 0.3s; }
+.lspro-connector.done { background: #16a34a; }
+.lspro-step { display: flex; flex-direction: column; align-items: center; gap: 6px; text-decoration: none; color: #94a3b8; padding: 4px 6px; border-radius: 10px; transition: all 0.2s ease; min-width: 72px; }
+.lspro-step:hover { color: #0284c7; background: rgba(2, 132, 199, 0.05); }
+.lspro-step-circle { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #e2e8f0; color: #94a3b8; font-size: 12px; font-weight: 700; flex-shrink: 0; transition: all 0.25s ease; border: 2px solid transparent; }
+.lspro-step-label { font-size: 10px; font-weight: 600; text-align: center; line-height: 1.3; white-space: nowrap; }
+.lspro-step.done .lspro-step-circle { background: #16a34a; color: white; border-color: #15803d; }
+.lspro-step.done { color: #16a34a; }
+.lspro-step.current .lspro-step-circle { background: #0284c7; color: white; border-color: #0369a1; box-shadow: 0 0 0 4px rgba(2, 132, 199, 0.18); }
+.lspro-step.current { color: #0369a1; }
+.lspro-step.current .lspro-step-label { font-weight: 700; }
+.lspro-step.rejected .lspro-step-circle { background: #dc2626; color: white; border-color: #b91c1c; }
+.lspro-step.rejected { color: #dc2626; }
+</style>
 @endsection

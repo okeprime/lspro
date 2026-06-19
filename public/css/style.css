@@ -15,12 +15,101 @@ body { font-family: 'Poppins', sans-serif; background-color: #f1f5f9; overflow-x
 .sidebar .brand img { max-width: 50px; margin-bottom: 10px; }
 
 /* LINK MENU: Dikunci agar tetap hijau muda (TIDAK BIRU) */
-.nav-links { list-style: none; padding: 20px 0; }
+.nav-links { 
+    list-style: none; 
+    padding: 20px 0; 
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    margin-right: -10px;
+    padding-right: 10px;
+}
+.nav-links::-webkit-scrollbar {
+    width: 6px;
+}
+.nav-links::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+}
+.nav-links::-webkit-scrollbar-thumb {
+    background: rgba(167, 243, 208, 0.3);
+    border-radius: 3px;
+}
+.nav-links::-webkit-scrollbar-thumb:hover {
+    background: rgba(167, 243, 208, 0.5);
+}
 .nav-links li a {
     display: flex; align-items: center; gap: 15px; padding: 15px 25px;
     color: #a7f3d0 !important; text-decoration: none; font-size: 14px; transition: 0.3s;
 }
 .nav-links li a:hover, .nav-links li a.active { background: #065f46; color: white !important; border-left: 4px solid #10b981; }
+
+/* DROPDOWN MENU STYLES */
+.nav-item-with-dropdown {
+    position: relative;
+}
+
+.nav-link-dropdown {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    color: #a7f3d0 !important;
+    text-decoration: none;
+}
+
+.dropdown-icon {
+    font-size: 12px;
+    transition: transform 0.3s ease;
+    margin-left: 8px;
+}
+
+.nav-item-with-dropdown.active .dropdown-icon {
+    transform: rotate(180deg);
+}
+
+.nav-item-with-dropdown > .dropdown-menu {
+    display: none;
+    position: static;
+    width: 100%;
+    list-style: none;
+    padding: 0;
+    margin: 5px 0 0 0;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+    border: 0;
+    box-shadow: none;
+}
+
+.nav-item-with-dropdown.active > .dropdown-menu {
+    display: block;
+}
+
+.nav-item-with-dropdown > .dropdown-menu li {
+    margin: 0;
+}
+
+.nav-item-with-dropdown > .dropdown-menu a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 15px 10px 35px;
+    color: rgba(255, 255, 255, 0.8) !important;
+    text-decoration: none;
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
+.nav-item-with-dropdown > .dropdown-menu a:hover {
+    background: rgba(167, 243, 208, 0.1);
+    color: #a7f3d0 !important;
+    padding-left: 40px;
+}
+
+.nav-item-with-dropdown > .dropdown-menu a.active {
+    color: #a7f3d0 !important;
+    border-left: 3px solid #a7f3d0;
+    padding-left: 32px;
+}
 
 /* NAVBAR & KONTEN: Full screen saat sidebar hilang */
 .top-navbar {
@@ -43,3 +132,29 @@ body { font-family: 'Poppins', sans-serif; background-color: #f1f5f9; overflow-x
     color: white; padding: 60px 40px; border-radius: 15px; margin-bottom: 30px; text-align: center;
 }
 .info-card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-top: 5px solid #2563eb; }
+/* DROPDOWN PENGAJUAN */
+.nav-dropdown.active .nav-submenu{
+    display:block !important;
+}
+
+.nav-submenu{
+    display:none;
+    list-style:none;
+    padding-left:25px;
+    margin-top:5px;
+}
+
+.nav-submenu li{
+    margin:0;
+}
+
+.nav-submenu a{
+    display:block !important;
+    color:#cbd5e1 !important;
+    padding:8px 15px !important;
+    text-decoration:none;
+}
+
+.nav-submenu a:hover{
+    color:#fff !important;
+}

@@ -1,0 +1,40 @@
+<?php
+
+/**
+ * INDEX.PHP UNTUK HOSTINGER
+ * =========================
+ * File ini adalah versi modifikasi dari public/index.php
+ * Disesuaikan untuk struktur folder Hostinger shared hosting.
+ * 
+ * STRUKTUR FOLDER:
+ *   /home/u123456789/project-lspro/          ← folder Laravel
+ *   /home/u123456789/domains/domain.com/public_html/  ← file ini ada di sini
+ * 
+ * INSTRUKSI:
+ *   1. Upload file ini ke public_html/ sebagai index.php
+ *   2. Ganti 'project-lspro' jika nama folder project berbeda
+ */
+
+use Illuminate\Foundation\Application;
+use Illuminate\Http\Request;
+
+define('LARAVEL_START', microtime(true));
+
+// =========================================================
+// KONFIGURASI: Sesuaikan path ke folder project Laravel
+// =========================================================
+$projectPath = __DIR__ . '/../project-lspro';
+
+// Determine if the application is in maintenance mode...
+if (file_exists($maintenance = $projectPath . '/storage/framework/maintenance.php')) {
+    require $maintenance;
+}
+
+// Register the Composer autoloader...
+require $projectPath . '/vendor/autoload.php';
+
+// Bootstrap Laravel and handle the request...
+/** @var Application $app */
+$app = require_once $projectPath . '/bootstrap/app.php';
+
+$app->handleRequest(Request::capture());

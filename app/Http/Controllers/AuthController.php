@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\User; // Memanggil model User bawaan Laravel Anda
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Auth\Events\Registered;
 
 class AuthController extends Controller
 {
@@ -33,8 +34,12 @@ class AuthController extends Controller
             // Jika sukses, amankan session
             $request->session()->regenerate();
 
-            // Redirect ke halaman dashboard
-            return redirect()->intended('/dashboard');
+            // Redirect ke dashboard masing-masing berdasarkan role
+            $role = trim(strtolower(Auth::user()->role));
+            if ($role === 'admin' || $role === 'superadmin') {
+                return redirect('/admin/dashboard');
+            }
+            return redirect('/dashboard');
         }
 
         // 3. Jika login gagal, kembalikan ke halaman login dengan error
@@ -58,20 +63,34 @@ class AuthController extends Controller
     {
         // 1. Validasi data input form register
         $request->validate([
-            'name' => ['required', 'string', 'max:255'],
+            'nama_perusahaan' => ['required', 'string', 'max:255'],
+            'nama_penghubung' => ['required', 'string', 'max:255'],
+            'no_telp' => ['required', 'string', 'max:50'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
-            'password' => ['required', 'string', 'min:8'], 
+            'password' => ['required', 'string', 'min:6'], 
+            'alamat' => ['required', 'string'],
         ]);
 
         // 2. Simpan user baru ke database menggunakan Eloquent Model User
-        User::create([
-            'name' => $request->name,
+        $user = User::create([
+            'nama_perusahaan' => $request->nama_perusahaan,
+            'nama_penghubung' => $request->nama_penghubung,
+            'no_telp' => $request->no_telp,
             'email' => $request->email,
+            'alamat' => $request->alamat,
             'password' => Hash::make($request->password), // Enkripsi password demi keamanan
+            'role' => 'client',
+            'is_active' => true,
         ]);
 
-        // 3. Setelah sukses mendaftar, lempar ke halaman login dengan pesan sukses
-        return redirect('/login')->with('success', 'Registrasi berhasil! Silakan login dengan akun baru Anda.');
+        // 3. Picu event Registered untuk mengirim email verifikasi
+        event(new Registered($user));
+
+        // 4. Langsung loginkan user
+        Auth::login($user);
+
+        // 5. Lempar ke halaman verifikasi email (dashboard dengan middleware verified akan otomatis redirect ke verify)
+        return redirect('/dashboard')->with('success', 'Registrasi berhasil! Silakan periksa email Anda untuk verifikasi.');
     }
 
     /**
@@ -85,7 +104,7 @@ class AuthController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        // Kembalikan ke halaman login setelah sukses keluar
-        return redirect('/login');
+        // Kembalikan ke halaman landing page setelah sukses keluar
+        return redirect('/');
     }
 }

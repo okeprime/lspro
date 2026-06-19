@@ -14,7 +14,7 @@
     <div class="auth-left">
         <div class="auth-header">
             <img src="{{ asset('assets/kementan.png') }}" alt="Logo Kementan">
-            <h2>BALAI PERAKITAN DAN PENGUJIAN LINGKUNGAN PERTANIAN<br>
+            <h2>BALAI BESAR PERAKITAN DAN MODERNISASI SUMBER DAYA LAHAN PERTANIAN<br>
                 <span style="font-size: 10px; font-weight: normal; color: #64748b;">BADAN PERAKITAN DAN MODERNISASI PERTANIAN</span>
             </h2>
         </div>
