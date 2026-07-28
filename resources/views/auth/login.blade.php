@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Masuk - LSPro BRMP</title>
     
-    <link rel="stylesheet" href="{{ asset('css/login_style.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/login_style.css') }}?v={{ time() }}">
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"/>
 </head>
@@ -43,7 +43,8 @@
                     <label>Password *</label>
                     <div class="input-icon-wrapper">
                         <i class="fa-solid fa-lock"></i>
-                        <input type="password" name="password" class="form-control" placeholder="••••••••" required>
+                        <input type="password" name="password" id="password" class="form-control" placeholder="••••••••" required>
+                        <i class="fa-solid fa-eye toggle-password" style="position: absolute; left: auto !important; right: 15px; top: 50%; transform: translateY(-50%); cursor: pointer; color: #94a3b8;" onclick="togglePasswordVisibility('password', this)"></i>
                     </div>
                 </div>
 
@@ -62,5 +63,19 @@
 
     <div class="auth-right"></div>
 
+    <script>
+        function togglePasswordVisibility(inputId, iconElement) {
+            const input = document.getElementById(inputId);
+            if (input.type === 'password') {
+                input.type = 'text';
+                iconElement.classList.remove('fa-eye');
+                iconElement.classList.add('fa-eye-slash');
+            } else {
+                input.type = 'password';
+                iconElement.classList.remove('fa-eye-slash');
+                iconElement.classList.add('fa-eye');
+            }
+        }
+    </script>
 </body>
 </html>

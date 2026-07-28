@@ -17,8 +17,14 @@ use App\Models\Pengajuan;
 |--------------------------------------------------------------------------
 */
 
+use Inertia\Inertia;
+
 Route::get('/', function () {
-    return view('welcome');
+    return Inertia::render('Welcome');
+});
+
+Route::get('/test-sistem', function() {
+    return 'BERHASIL! File web.php Anda sukses terupdate dan terbaca oleh server!';
 });
 
 // =========================================================================
@@ -31,6 +37,31 @@ Route::middleware('guest')->group(function () {
     Route::post('/register', [AuthController::class, 'register'])->name('register.post');
 });
 
+// =====================================================================
+// ✉️ EMAIL VERIFICATION ROUTES (BISA DIAKSES TANPA LOGIN)
+// =====================================================================
+Route::get('/email/verify/{id}/{hash}', function (\Illuminate\Http\Request $request, $id, $hash) {
+    $user = \App\Models\User::find($id);
+
+    if (! $user) {
+        abort(404);
+    }
+
+    if (! hash_equals(sha1($user->getEmailForVerification()), (string) $hash)) {
+        abort(403, 'Link verifikasi tidak valid atau sudah kadaluarsa.');
+    }
+
+    if (! $user->hasVerifiedEmail()) {
+        $user->markEmailAsVerified();
+        event(new \Illuminate\Auth\Events\Verified($user));
+    }
+
+    // Auto-login user setelah verifikasi berhasil
+    \Illuminate\Support\Facades\Auth::login($user);
+
+    return redirect('/dashboard')->with('success', 'Email berhasil diverifikasi!');
+})->middleware(['signed'])->name('verification.verify');
+
 // =========================================================================
 // 🛡️ RUTE YANG WAJIB LOGIN (AUTH)
 // =========================================================================
@@ -39,17 +70,9 @@ Route::middleware('auth')->group(function () {
     // Aksi Keluar Aplikasi
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
-    // =====================================================================
-    // ✉️ EMAIL VERIFICATION ROUTES
-    // =====================================================================
     Route::get('/email/verify', function () {
         return view('auth.verify-email');
     })->name('verification.notice');
-
-    Route::get('/email/verify/{id}/{hash}', function (\Illuminate\Foundation\Auth\EmailVerificationRequest $request) {
-        $request->fulfill();
-        return redirect()->route('client.dashboard');
-    })->middleware(['signed'])->name('verification.verify');
 
     Route::post('/email/verification-notification', function (\Illuminate\Http\Request $request) {
         $request->user()->sendEmailVerificationNotification();
@@ -65,7 +88,7 @@ Route::middleware('auth')->group(function () {
     // =====================================================================
     // 👥 RUTE KLIEN (WAJIB VERIFIKASI EMAIL)
     // =====================================================================
-    Route::middleware(['verified'])->group(function () {
+    Route::middleware(['auth', 'verified'])->group(function () {
         
         Route::get('/dashboard', function () {
             $user_id = auth()->id();
@@ -76,7 +99,7 @@ Route::middleware('auth')->group(function () {
             
             $recentPengajuan = \App\Models\Pengajuan::where('user_id', $user_id)->orderBy('created_at', 'desc')->take(5)->get();
 
-            return view('client.beranda', compact('totalPengajuan', 'pengajuanAktif', 'sertifikatTerbit', 'menungguPembayaran', 'recentPengajuan'));
+            return \Inertia\Inertia::render('Client/Beranda', compact('totalPengajuan', 'pengajuanAktif', 'sertifikatTerbit', 'menungguPembayaran', 'recentPengajuan'));
         })->name('client.dashboard');
 
         Route::redirect('/beranda', '/dashboard')->name('beranda');
@@ -95,9 +118,14 @@ Route::middleware('auth')->group(function () {
         // Billing Page Client
         Route::get('/billing', [PengajuanController::class, 'billing'])->name('billing.index');
         Route::post('/invoice/{id}/pay', [PengajuanController::class, 'payInvoice'])->name('invoice.pay');
+        Route::get('/invoice/{id}/cetak', [PengajuanController::class, 'cetakInvoice'])->name('invoice.cetak');
+
+        // Customer Service Page Client
+        Route::get('/client/cs', [PengajuanController::class, 'customerService'])->name('client.cs');
 
         // Sertifikat
         Route::get('/sertifikat', [SertifikatController::class, 'index'])->name('sertifikat.index');
+        Route::get('/sertifikat/{id}/cetak', [SertifikatController::class, 'cetak'])->name('sertifikat.cetak');
         
         // Customer Service (Client side)
         Route::get('/customer-service', function() {
@@ -112,27 +140,35 @@ Route::middleware('auth')->group(function () {
         // 📋 PENGAJUAN (SERTIFIKASI, RESERTIFIKASI, SURVAILEN)
         // =====================================================================
         Route::get('/pengajuan', [PengajuanController::class, 'index'])->name('pengajuan.index');
-        Route::get('/pengajuan/sertifikasi', [PengajuanController::class, 'pilihProduk'])->defaults('jenis', 'sertifikasi')->name('pengajuan.sertifikasi');
-        Route::get('/pengajuan/resertifikasi', [PengajuanController::class, 'pilihProduk'])->defaults('jenis', 'resertifikasi')->name('pengajuan.resertifikasi');
-        Route::get('/pengajuan/survailen', [PengajuanController::class, 'pilihProduk'])->defaults('jenis', 'survailen')->name('pengajuan.survailen');
+        Route::get('/pengajuan/sertifikasi', [PengajuanController::class, 'create'])->defaults('jenis_pengajuan', 'Sertifikasi')->name('pengajuan.sertifikasi');
+        Route::get('/pengajuan/resertifikasi', [PengajuanController::class, 'create'])->defaults('jenis_pengajuan', 'Resertifikasi')->name('pengajuan.resertifikasi');
+        Route::get('/pengajuan/survailen', [PengajuanController::class, 'create'])->defaults('jenis_pengajuan', 'Survailen')->name('pengajuan.survailen');
         Route::get('/pengajuan/form', [PengajuanController::class, 'create'])->name('pengajuan.create');
+        Route::get('/pengajuan/{id}/perjanjian/cetak', [PengajuanController::class, 'cetakPerjanjian'])->name('pengajuan.perjanjian.cetak');
         Route::post('/pengajuan/survailen/{id}/upload', [PengajuanController::class, 'uploadSurvailenDokumen'])->name('pengajuan.survailen.upload');
-        Route::post('/pengajuan/store-draft', [PengajuanController::class, 'storeDraft'])->name('pengajuan.store_draft');
+        Route::post('/pengajuan/draft', [PengajuanController::class, 'storeDraft'])->name('pengajuan.store_draft');
+        Route::delete('/pengajuan/draft/{id}', [PengajuanController::class, 'destroyDraft'])->name('pengajuan.destroy_draft');
         
-        // MULTI-STEP WIZARD (AUTO-SAVE)
-        Route::get('/pengajuan/form/{step?}', [PengajuanController::class, 'createWizard'])->name('pengajuan.wizard');
-        Route::post('/pengajuan/form/save', [PengajuanController::class, 'saveWizard'])->name('pengajuan.wizard.save');
-        Route::post('/pengajuan/form/submit', [PengajuanController::class, 'submitWizard'])->name('pengajuan.wizard.submit');
+
 
         // ALUR KLAUSUL TAHAP 7.2
-        Route::get('/pengajuan/pilih', [PengajuanController::class, 'pilihTahap'])->name('pengajuan.pilih');
         Route::get('/pengajuan/buat', [PengajuanController::class, 'create'])->name('pengajuan.buat');
         Route::post('/pengajuan/store', [PengajuanController::class, 'store'])->name('pengajuan.store');
         Route::get('/pengajuan/{id}/lampiran', [PengajuanController::class, 'lampiran'])->name('pengajuan.lampiran');
         Route::post('/pengajuan/{id}/lampiran', [PengajuanController::class, 'storeLampiran'])->name('pengajuan.lampiran.store');
         
+
         // UPLOAD PDF PERMOHONAN BERMETERAI OLEH CLIENT
         Route::post('/pengajuan/{id}/upload-permohonan', [PengajuanController::class, 'uploadPermohonanTtd'])->name('pengajuan.upload_permohonan');
+        
+        // TINDAKAN KLIEN (JADWAL, LKS)
+        Route::post('/pengajuan/{id}/setuju-jadwal', [PengajuanController::class, 'setujuJadwal'])->name('pengajuan.setuju_jadwal');
+        // Client tidak boleh upload LHP, ini wewenang admin:
+        // Route::get('/pengajuan/{id}/upload-lhp', [PengajuanController::class, 'formLhp'])->name('pengajuan.form_lhp');
+        // Route::post('/pengajuan/{id}/upload-lhp', [PengajuanController::class, 'uploadLhp'])->name('pengajuan.upload_lhp');
+        
+        Route::get('/pengajuan/{id}/tindakan-perbaikan', [PengajuanController::class, 'formTindakanPerbaikan'])->name('pengajuan.tindakan_perbaikan');
+        Route::post('/pengajuan/{id}/tindakan-perbaikan', [PengajuanController::class, 'uploadTindakanPerbaikan'])->name('pengajuan.tindakan_perbaikan.upload');
         
         // =====================================================================
         // ⚖️ BANDING & LAPORAN
@@ -142,12 +178,12 @@ Route::middleware('auth')->group(function () {
 
     }); // End of Verified middleware
 
-    // DOWNLOAD BERKAS KLIEN (Bisa diakses Admin/TU/Klien tanpa harus verified jika admin)
-    Route::get('/pengajuan/download/{id}', function ($id) {
+    // DOWNLOAD BERKAS KLIEN (Bisa diakses Admin/Administrasi/Klien tanpa harus verified jika admin)
+    Route::get('/pengajuan/download-draft/{id}', function ($id) {
         $user = auth()->user();
         $role = trim(strtolower($user->role));
 
-        if ($role === 'admin' || $role === 'tu' || str_contains($role, 'tu') || str_contains($role, 'admin')) {
+        if ($role === 'admin' || $role === 'tu' || str_contains($role, 'tu') || str_contains($role, 'admin') || str_contains($role, 'layanan')) {
             $pengajuan = Pengajuan::findOrFail($id);
         } else {
             $pengajuan = Pengajuan::where('id', $id)->where('user_id', $user->id)->firstOrFail();
@@ -159,10 +195,33 @@ Route::middleware('auth')->group(function () {
             return response()->download($filePath, $pengajuan->file_permohonan);
         }
 
+        return redirect()->back()->with('error', 'Draf dokumen tidak ditemukan.');
+    })->name('pengajuan.download_draft');
+
+    Route::get('/pengajuan/download/{id}', function ($id) {
+        $user = auth()->user();
+        $role = trim(strtolower($user->role));
+
+        if ($role === 'admin' || $role === 'tu' || str_contains($role, 'tu') || str_contains($role, 'admin') || str_contains($role, 'layanan')) {
+            $pengajuan = Pengajuan::findOrFail($id);
+        } else {
+            $pengajuan = Pengajuan::where('id', $id)->where('user_id', $user->id)->firstOrFail();
+        }
+
+        if ($pengajuan->file_permohonan_ttd && file_exists(storage_path('app/public/' . $pengajuan->file_permohonan_ttd))) {
+            return response()->download(storage_path('app/public/' . $pengajuan->file_permohonan_ttd), 'Form_7.2-1_Permohonan_TTD.pdf');
+        }
+
+        $filePath = storage_path('app/public/permohonan/' . $pengajuan->file_permohonan);
+
+        if ($pengajuan->file_permohonan && file_exists($filePath)) {
+            return response()->download($filePath, $pengajuan->file_permohonan);
+        }
+
         return redirect()->back()->with('error', 'Berkas dokumen fisik gagal ditemukan di server penyimpanan.');
     })->name('pengajuan.download');
 
-    // DOWNLOAD AUTO-GENERATE DOCX FORM 7.2-4 (Bisa diakses TU maupun Klien)
+    // DOWNLOAD AUTO-GENERATE DOCX FORM 7.2-4 (Bisa diakses Administrasi maupun Klien)
     Route::get('/pengajuan/{id}/download-form-724', [AdminController::class, 'downloadForm724'])->name('pengajuan.download724');
 
     // =====================================================================
@@ -174,7 +233,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/notifikasi/{id}', [\App\Http\Controllers\NotificationController::class, 'destroy'])->name('notifikasi.destroy');
 
     // =====================================================================
-    // 💼 JALUR PERAN: TU AS ADMIN 
+    // 💼 JALUR PERAN: Administrasi AS ADMIN 
     // =====================================================================
     Route::prefix('admin')->middleware(CheckAdminRole::class)->group(function () {
         
@@ -192,8 +251,18 @@ Route::middleware('auth')->group(function () {
         // FITUR PENDUKUNG: Rute Cetak & Download Hasil Form Evaluasi 7.2-4
         Route::get('/pengajuan/{id}/download', [AdminController::class, 'downloadForm724'])->name('admin.pengajuan.download');
 
+        // FORM DINAMIS: Pengisian form oleh Admin/Auditor dari Form Builder
+        Route::get('/pengajuan/{id}/isi-form/{form_type}', [AdminController::class, 'isiFormDinamis'])->name('admin.pengajuan.isi_form');
+        Route::post('/pengajuan/{id}/isi-form/{form_type}', [AdminController::class, 'simpanFormDinamis'])->name('admin.pengajuan.simpan_form');
+
         // FITUR PENDUKUNG: Rute Penyerahan / Penerusan Berkas Kerja ke Bagian Lain
         Route::post('/pengajuan/{id}/teruskan', [AdminController::class, 'teruskan'])->name('admin.pengajuan.teruskan');
+        Route::post('/pengajuan/{id}/create-invoice', [AdminController::class, 'createInvoice'])->name('admin.pengajuan.create_invoice');
+        Route::get('/dummy-teruskan', [AdminController::class, 'dummyTeruskan'])->name('admin.dummy.teruskan');
+
+        // JADWAL AUDIT & BILLING LAB
+        Route::post('/pengajuan/{id}/set-jadwal', [AdminController::class, 'setJadwalAudit'])->name('admin.pengajuan.set_jadwal');
+        Route::post('/pengajuan/{id}/terbitkan-billing-lab', [AdminController::class, 'terbitkanBillingLab'])->name('admin.pengajuan.terbitkan_billing_lab');
 
         // Kelola Survailen
         Route::get('/survailen', [AdminController::class, 'surveilanIndex'])->name('admin.survailen.index');
@@ -207,35 +276,42 @@ Route::middleware('auth')->group(function () {
         
         // Modul Baru Admin (Sesuai Sub Role)
         Route::get('/panel-tu', [AdminController::class, 'panelTU'])->name('admin.panel_tu');
+        Route::get('/penjadwalan-audit', [AdminController::class, 'penjadwalanAudit'])->name('admin.penjadwalan_audit');
         Route::get('/panel-keuangan', [AdminController::class, 'panelKeuangan'])->name('admin.panel_keuangan');
+        Route::post('/invoice/{id}/upload-billing', [AdminController::class, 'uploadBilling'])->name('admin.invoice.upload_billing');
+        Route::put('/invoice/{id}/update', [AdminController::class, 'updateInvoice'])->name('admin.invoice.update');
+        Route::delete('/invoice/{id}/destroy', [AdminController::class, 'destroyInvoice'])->name('admin.invoice.destroy');
         Route::post('/invoice/{id}/verify', [AdminController::class, 'verifyPayment'])->name('admin.invoice.verify');
+        Route::post('/invoice/{id}/upload-kwitansi', [AdminController::class, 'uploadKwitansi'])->name('admin.invoice.upload_kwitansi');
+        
+        // Pembuatan RAB / Rencana Anggaran Biaya
+        Route::get('/pengajuan/{id}/rab/create', [AdminController::class, 'createRab'])->name('admin.rab.create');
+        Route::post('/pengajuan/{id}/rab', [AdminController::class, 'storeRab'])->name('admin.rab.store');
         Route::get('/customer-service', [AdminController::class, 'customerService'])->name('admin.cs');
         Route::get('/data-sampel', [AdminController::class, 'dataSampel'])->name('admin.data_sampel');
         Route::get('/penyerahan-sertifikat', [AdminController::class, 'penyerahanSertifikat'])->name('admin.penyerahan_sertifikat');
         Route::post('/penyerahan-sertifikat/{id}/kirim', [AdminController::class, 'kirimSertifikat'])->name('admin.penyerahan_sertifikat.kirim');
-        Route::get('/audit-724', [AdminController::class, 'panelAudit724'])->name('admin.audit_724');
+
+        // Audit Kesesuaian (Proses Audit Lapangan/Berkas)
         Route::get('/audit-berkas', [AdminController::class, 'auditBerkas'])->name('admin.audit_berkas');
         Route::post('/audit-berkas/{id}/proses', [AdminController::class, 'prosesAuditBerkas'])->name('admin.audit_berkas.proses');
         
-        // DUMMY ROUTES DENGAN DATA KONTEKSTUAL
-        Route::get('/audit-kecukupan', function() { 
-            $mockData = [
-                ['id' => 'AUD-001', 'status' => '<span class="badge bg-warning text-dark">Pemeriksaan Berkas</span>', 'desc' => 'PT Semesta Agro Tbk - Dokumen ISO 9001 belum lengkap'],
-                ['id' => 'AUD-002', 'status' => '<span class="badge bg-primary">Penjadwalan</span>', 'desc' => 'CV Bumi Indah Sejahtera - Menunggu konfirmasi auditor lapangan'],
-                ['id' => 'AUD-003', 'status' => '<span class="badge bg-success">Selesai</span>', 'desc' => 'PT Tani Makmur - Seluruh berkas telah dinyatakan cukup']
-            ];
-            return view('admin.dummy', ['title' => 'Audit Kecukupan', 'desc' => 'Daftar audit kecukupan dokumen yang sedang berlangsung (Data Dummy)', 'mockData' => $mockData]); 
-        })->name('admin.audit_kecukupan');
-        
-        Route::get('/hasil-lab', function() { 
-            $mockData = [
-                ['id' => 'LAB-2026-901', 'status' => '<span class="badge bg-success">Lulus Uji</span>', 'desc' => 'Pupuk Organik Padat (Kadar NPK memenuhi standar)'],
-                ['id' => 'LAB-2026-902', 'status' => '<span class="badge bg-danger">Tidak Lulus</span>', 'desc' => 'Pupuk Urea (Kadar Biuret melebihi batas maksimal 1%)'],
-                ['id' => 'LAB-2026-903', 'status' => '<span class="badge bg-warning text-dark">Sedang Diuji</span>', 'desc' => 'Pupuk NPK 15-15-15 (Pengujian spektofotometri tahap 2)']
-            ];
-            return view('admin.dummy', ['title' => 'Hasil Laboratorium', 'desc' => 'Daftar hasil laboratorium terintegrasi dengan LIMS (Data Dummy)', 'mockData' => $mockData]); 
-        })->name('admin.hasil_lab');
+        // --- ROUTES LAYANAN & STANDAR (Placeholder) ---
+        Route::get('/layanan/evaluasi-dokumen', [AdminController::class, 'layananEvaluasiDokumen'])->name('admin.layanan.evaluasi_dokumen');
+        Route::get('/layanan/penugasan-tim', [AdminController::class, 'layananPenugasanTim'])->name('admin.layanan.penugasan_tim');
+        Route::get('/layanan/evaluasi-laporan', [AdminController::class, 'layananEvaluasiLaporan'])->name('admin.layanan.evaluasi_laporan');
+        Route::get('/layanan/komisi-teknis', [AdminController::class, 'layananKomisiTeknis'])->name('admin.layanan.komisi_teknis');
 
+        // --- ROUTES TIM AUDIT (Placeholder) ---
+        Route::get('/audit/laporan-ketidaksesuaian', [AdminController::class, 'auditLKS'])->name('admin.audit.lks');
+        
+        Route::get('/hasil-lab', [AdminController::class, 'auditHasilLab'])->name('admin.hasil_lab');
+        
+        // LHP (Laporan Hasil Pengujian)
+        Route::get('/pengajuan/{id}/upload-lhp', [AdminController::class, 'formLhp'])->name('admin.pengajuan.form_lhp');
+        Route::post('/pengajuan/{id}/upload-lhp', [AdminController::class, 'uploadLhp'])->name('admin.pengajuan.upload_lhp');
+        Route::get('/pengajuan/{id}/tinjau-lhp', [AdminController::class, 'tinjauLhp'])->name('admin.pengajuan.tinjau_lhp');
+        Route::post('/pengajuan/{id}/tinjau-lhp', [AdminController::class, 'prosesTinjauLhp'])->name('admin.pengajuan.proses_tinjau_lhp');
         // Chat Internal
         Route::get('/chat', [\App\Http\Controllers\ChatController::class, 'index'])->name('admin.chat.index');
         Route::get('/chat/{group}', [\App\Http\Controllers\ChatController::class, 'getMessages'])->name('admin.chat.messages');
@@ -243,10 +319,30 @@ Route::middleware('auth')->group(function () {
     });
 
     // =====================================================================
+    // 🧪 PPC (PETUGAS PENGAMBIL CONTOH)
+    // =====================================================================
+    Route::prefix('ppc')->middleware(CheckAdminRole::class)->group(function () {
+        Route::get('/dashboard', [\App\Http\Controllers\PpcController::class, 'dashboard'])->name('ppc.dashboard');
+    });
+
+    // =====================================================================
     // 👑 SUPERADMIN (MANAJEMEN USER)
     // =====================================================================
     Route::prefix('superadmin')->middleware(CheckAdminRole::class)->group(function () {
         Route::get('/users', [\App\Http\Controllers\UserController::class, 'index'])->name('superadmin.users.index');
+        
+        // Pengaturan Sistem & Billing
+        // Halaman Pengaturan Sistem (Sekarang diarahkan ke Form Builder)
+        Route::get('/settings', [\App\Http\Controllers\Superadmin\FormBuilderController::class, 'index'])->name('superadmin.settings');
+        // Route upload template baru untuk spesifik form_type
+        Route::post('/form-builder/{form_type}/upload-template', [\App\Http\Controllers\Superadmin\FormBuilderController::class, 'uploadTemplate'])->name('superadmin.form_builder.upload_template');        
+        // Form Builder
+        Route::resource('form-builder', \App\Http\Controllers\Superadmin\FormBuilderController::class)->names('superadmin.form_builder');
+
+        // --- ROUTES KETUA LSPRO / SUPERADMIN (Placeholder) ---
+        Route::get('/persetujuan-penugasan', [AdminController::class, 'superadminPersetujuanPenugasan'])->name('admin.superadmin.persetujuan_penugasan');
+        Route::get('/pengesahan-sertifikat', [AdminController::class, 'superadminPengesahanSertifikat'])->name('admin.superadmin.pengesahan_sertifikat');
+        
         Route::get('/users/create', [\App\Http\Controllers\UserController::class, 'create'])->name('superadmin.users.create');
         Route::post('/users', [\App\Http\Controllers\UserController::class, 'store'])->name('superadmin.users.store');
         Route::get('/users/{user}/edit', [\App\Http\Controllers\UserController::class, 'edit'])->name('superadmin.users.edit');
@@ -256,7 +352,7 @@ Route::middleware('auth')->group(function () {
         Route::delete('/users/{user}', [\App\Http\Controllers\UserController::class, 'destroy'])->name('superadmin.users.destroy');
     });
 
-    // Rute Cadangan TU Berdasarkan Role Tambahan
+    // Rute Cadangan Administrasi Berdasarkan Role Tambahan
     Route::prefix('tu')->middleware(CheckAdminRole::class)->group(function () {
         Route::get('/dashboard', [AdminController::class, 'index'])->name('tu.dashboard');
         Route::get('/evaluasi/{id}', [AdminController::class, 'cekKelengkapan'])->name('tu.ceklis');
@@ -264,3 +360,21 @@ Route::middleware('auth')->group(function () {
     });
 
 });
+
+// Rute Download File (Pakai /unduh/ agar tidak dicegat LiteSpeed)
+Route::get('/unduh/{path}', function ($path) {
+    $fullPath = storage_path('app/public/' . $path);
+    if (!file_exists($fullPath)) {
+        return "FILE TIDAK DITEMUKAN. Sistem mencari di: <b>" . $fullPath . "</b>";
+    }
+    
+    // Gunakan helper File dari Illuminate untuk memastikan MIME type yang tepat
+    $mimeType = \Illuminate\Support\Facades\File::mimeType($fullPath);
+    
+    return response()->file($fullPath, [
+        'Content-Type' => $mimeType,
+        'Cache-Control' => 'no-cache, no-store, must-revalidate',
+        'Pragma' => 'no-cache',
+        'Expires' => '0'
+    ]);
+})->where('path', '.*')->name('unduh');

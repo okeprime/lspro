@@ -5,48 +5,55 @@
 <style>
     .stat-card {
         background: #fff;
-        border-radius: 16px;
-        padding: 20px 22px;
+        border-radius: 12px;
+        padding: 24px;
         border: 1px solid #e2e8f0;
-        display: flex; align-items: center; gap: 16px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-        transition: all 0.2s;
+        display: flex; align-items: center; gap: 18px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        transition: all 0.2s ease-in-out;
         text-decoration: none;
         color: inherit;
     }
-    .stat-card:hover { box-shadow: 0 8px 24px rgba(0,0,0,0.10); transform: translateY(-2px); color: inherit; }
+    .stat-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); transform: translateY(-1px); color: inherit; border-color: #cbd5e1; }
     .stat-icon {
-        width: 54px; height: 54px; border-radius: 14px;
+        width: 48px; height: 48px; border-radius: 10px;
         display: flex; align-items: center; justify-content: center;
-        font-size: 22px; flex-shrink: 0;
+        font-size: 20px; flex-shrink: 0;
+        background: #f1f5f9; color: #475569; /* Professional default slate */
     }
-    .stat-label { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.06em; }
-    .stat-value { font-size: 32px; font-weight: 800; color: #1e293b; line-height: 1; margin-top: 2px; }
-    .stat-sub   { font-size: 11px; color: #94a3b8; margin-top: 3px; }
+    .stat-label { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.08em; }
+    .stat-value { font-size: 28px; font-weight: 600; color: #0f172a; line-height: 1; margin-top: 4px; }
+    .stat-sub   { font-size: 11px; color: #94a3b8; margin-top: 4px; }
 
-    .section-title { font-size: 15px; font-weight: 700; color: #1e293b; margin-bottom: 3px; }
-    .section-sub   { font-size: 12px; color: #64748b; margin-bottom: 14px; }
-    .section-divider { border: none; border-top: 1px solid #f1f5f9; margin: 24px 0; }
+    .section-title { font-size: 15px; font-weight: 700; color: #0f172a; margin-bottom: 4px; letter-spacing: -0.01em; }
+    .section-sub   { font-size: 13px; color: #64748b; margin-bottom: 18px; }
+    .section-divider { border: none; border-top: 1px solid #e2e8f0; margin: 28px 0; }
 
     .quick-action-card {
-        background: #fff; border: 1px solid #e2e8f0; border-radius: 14px;
-        padding: 18px 20px; display: flex; align-items: center; gap: 14px;
-        text-decoration: none; color: #1e293b; transition: all 0.2s;
+        background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+        padding: 16px 20px; display: flex; align-items: center; gap: 14px;
+        text-decoration: none; color: #0f172a; transition: all 0.2s ease;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.03);
     }
-    .quick-action-card:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.08); transform: translateY(-2px); color: #1e293b; }
+    .quick-action-card:hover { box-shadow: 0 4px 10px rgba(0,0,0,0.06); transform: translateY(-1px); border-color: #cbd5e1; color: #0f172a; }
     .quick-action-icon {
-        width: 42px; height: 42px; border-radius: 12px;
+        width: 38px; height: 38px; border-radius: 8px;
         display: flex; align-items: center; justify-content: center;
-        font-size: 18px; flex-shrink: 0;
+        font-size: 16px; flex-shrink: 0;
+        background: #f1f5f9; color: #475569; /* Professional default slate */
     }
-    .quick-action-label { font-size: 12px; font-weight: 700; color: #1e293b; }
-    .quick-action-desc  { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+    .quick-action-label { font-size: 13px; font-weight: 600; color: #0f172a; }
+    .quick-action-desc  { font-size: 11px; color: #64748b; margin-top: 2px; }
 
     .welcome-banner {
-        border-radius: 20px; padding: 28px 32px;
+        border-radius: 16px; padding: 32px;
         display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;
-        margin-bottom: 24px;
+        margin-bottom: 28px;
+        background: linear-gradient(135deg, #0f172a, #1e293b);
+        border: 1px solid #334155;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
+    /* We'll override the colored backgrounds to uniform sleek variations if needed, or keep them all slate */
     .welcome-banner.tu     { background: linear-gradient(135deg, #064e3b, #047857); }
     .welcome-banner.layanan{ background: linear-gradient(135deg, #1e40af, #2563eb); }
     .welcome-banner.audit  { background: linear-gradient(135deg, #7c2d12, #c2410c); }
@@ -54,25 +61,43 @@
     .welcome-banner.default{ background: linear-gradient(135deg, #1e293b, #334155); }
 
     .badge-role {
-        display: inline-flex; align-items: center; gap: 6px;
-        padding: 4px 12px; border-radius: 99px; font-size: 11px;
-        font-weight: 700; letter-spacing: 0.04em; border: 1.5px solid rgba(255,255,255,0.3);
-        color: rgba(255,255,255,0.9); background: rgba(255,255,255,0.15); margin-bottom: 10px;
+        display: inline-flex; align-items: center; gap: 8px;
+        padding: 6px 14px; border-radius: 6px; font-size: 11px;
+        font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
+        color: #e2e8f0; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1);
+        margin-bottom: 12px;
     }
 
-    .table-mini thead th { font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; padding: 10px 16px; border: none; background: #f8fafc; }
-    .table-mini tbody td { font-size: 13px; padding: 11px 16px; border-color: #f1f5f9; vertical-align: middle; }
+    .table-mini thead th { font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; padding: 12px 16px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; }
+    .table-mini tbody td { font-size: 13px; padding: 14px 16px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; color: #334155; }
     .table-mini tbody tr:hover { background: #f8fafc; }
 
     .status-pill {
-        display: inline-flex; align-items: center; gap: 5px;
-        padding: 3px 10px; border-radius: 99px; font-size: 11px; font-weight: 600;
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 4px 12px; border-radius: 6px; font-size: 11px; font-weight: 600;
+        border: 1px solid rgba(0,0,0,0.05);
     }
 
     .info-box {
-        background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 18px 20px;
+        background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.02);
     }
-    .info-box-title { font-size: 13px; font-weight: 700; color: #1e293b; margin-bottom: 12px; }
+    .info-box-title { font-size: 14px; font-weight: 600; color: #0f172a; margin-bottom: 14px; }
+
+    /* MOBILE APP-LIKE STYLING */
+    @media (max-width: 576px) {
+        .container-fluid { padding: 16px 12px !important; }
+        .welcome-banner { padding: 24px 20px; border-radius: 14px; margin-bottom: 20px; flex-direction: column; align-items: flex-start; text-align: left; }
+        .welcome-banner h2 { font-size: 18px !important; margin-bottom: 4px !important; }
+        .welcome-banner p { font-size: 12px !important; }
+        .stat-card { padding: 16px; border-radius: 10px; gap: 12px; }
+        .stat-icon { width: 40px; height: 40px; font-size: 18px; border-radius: 8px; }
+        .stat-label { font-size: 10px; }
+        .stat-value { font-size: 24px; }
+        .quick-action-card { padding: 14px; border-radius: 10px; gap: 12px; flex-direction: row; text-align: left; justify-content: flex-start; min-height: auto;}
+        .quick-action-icon { width: 32px; height: 32px; font-size: 14px; margin: 0; }
+        .section-title { font-size: 14px; }
+    }
 </style>
 @endsection
 
@@ -85,29 +110,25 @@
     $isSuperAdmin = $userRole === 'superadmin';
 
     $bannerClass = match($userSub) {
-        'tatausaha' => 'tu',
-        'layanan'   => 'layanan',
+        'layanan'   => 'tu',
         'audit'     => 'audit',
         default     => $isSuperAdmin ? 'super' : 'default',
     };
 
     $subLabel = match($userSub) {
-        'tatausaha' => 'Tata Usaha',
-        'layanan'   => 'Layanan & Keuangan',
+        'layanan'   => 'Administrasi',
         'audit'     => 'Tim Audit',
         default     => $isSuperAdmin ? 'Superadmin' : 'Admin',
     };
 
     $greetingIcon = match($userSub) {
-        'tatausaha' => 'fa-folder-open',
-        'layanan'   => 'fa-file-invoice-dollar',
+        'layanan'   => 'fa-folder-open',
         'audit'     => 'fa-magnifying-glass-chart',
         default     => $isSuperAdmin ? 'fa-crown' : 'fa-gauge',
     };
 
     $greetingDesc = match($userSub) {
-        'tatausaha' => 'Kelola verifikasi berkas dan antrian pengajuan sertifikasi.',
-        'layanan'   => 'Pantau tagihan, survailen, dan banding/keluhan klien.',
+        'layanan'   => 'Kelola verifikasi berkas dan antrian pengajuan sertifikasi.',
         'audit'     => 'Kelola proses audit kecukupan dan audit lapangan.',
         default     => $isSuperAdmin ? 'Pantau seluruh sistem dan kelola akses pengguna.' : 'Ringkasan aktivitas sistem sertifikasi LSPro.',
     };
@@ -116,14 +137,14 @@
         'draft'            => ['label' => 'Draft',              'class' => 'bg-secondary'],
         'diajukan'         => ['label' => 'Diajukan',           'class' => 'bg-primary'],
         'perbaikan'        => ['label' => 'Perbaikan',          'class' => 'bg-warning text-dark'],
-        'verifikasi_tu'    => ['label' => 'Verifikasi TU',      'class' => 'bg-info text-dark'],
+        'verifikasi_tu'    => ['label' => 'Verifikasi Administrasi',      'class' => 'bg-info text-dark'],
         'perjanjian'       => ['label' => 'Perjanjian',         'class' => 'bg-info'],
         'billing'          => ['label' => 'Billing',            'class' => 'bg-warning text-dark'],
         'proses_evaluasi'  => ['label' => 'Evaluasi',           'class' => 'bg-primary'],
         'proses_audit'     => ['label' => 'Audit',              'class' => 'bg-primary'],
         'keputusan'        => ['label' => 'Keputusan',          'class' => 'bg-info'],
         'selesai'          => ['label' => 'Selesai',            'class' => 'bg-success'],
-        'sppt_sni'         => ['label' => 'SPPT SNI',           'class' => 'bg-success'],
+        'sppt_sni'         => ['label' => 'Sertifikat Kesesuaian SNI',           'class' => 'bg-success'],
         'ditolak'          => ['label' => 'Ditolak',            'class' => 'bg-danger'],
         'pending_ttd'      => ['label' => 'Menunggu TTD',       'class' => 'bg-warning text-dark'],
     ];
@@ -161,7 +182,7 @@
     {{-- ================================================================ --}}
     @if($isSuperAdmin)
 
-        <div class="section-title"><i class="fa-solid fa-chart-bar me-2" style="color:#4f46e5;"></i>Ringkasan Sistem</div>
+        <div class="section-title"><i class="fa-solid fa-chart-bar me-2" ></i>Ringkasan Sistem</div>
         <p class="section-sub">Statistik keseluruhan aktivitas layanan sertifikasi.</p>
 
         <div class="row g-3 mb-4">
@@ -181,7 +202,7 @@
                     <div>
                         <div class="stat-label">Belum Diverifikasi</div>
                         <div class="stat-value">{{ $stats['belum_diverifikasi'] ?? 0 }}</div>
-                        <div class="stat-sub">Menunggu TU</div>
+                        <div class="stat-sub">Menunggu Administrasi</div>
                     </div>
                 </a>
             </div>
@@ -208,7 +229,7 @@
         </div>
 
         <div class="row g-3 mb-4">
-            <div class="col-md-4">
+            <div class="col-6 col-md-3">
                 <div class="stat-card">
                     <div class="stat-icon" style="background:#fce7f3;color:#9d174d;"><i class="fa-solid fa-gavel"></i></div>
                     <div>
@@ -218,7 +239,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-6 col-md-3">
                 <div class="stat-card">
                     <div class="stat-icon" style="background:#fef3c7;color:#ca8a04;"><i class="fa-solid fa-magnifying-glass"></i></div>
                     <div>
@@ -228,7 +249,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-6 col-md-3">
                 <div class="stat-card">
                     <div class="stat-icon" style="background:#ffedd5;color:#c2410c;"><i class="fa-solid fa-clipboard-check"></i></div>
                     <div>
@@ -243,14 +264,14 @@
         <hr class="section-divider">
 
         {{-- Akses Cepat Superadmin --}}
-        <div class="section-title mb-3"><i class="fa-solid fa-bolt me-2" style="color:#4f46e5;"></i>Akses Cepat</div>
+        <div class="section-title mb-3"><i class="fa-solid fa-bolt me-2" ></i>Akses Cepat</div>
         <div class="row g-3 mb-4">
             <div class="col-6 col-md-3">
                 <a href="{{ route('superadmin.users.index') }}" class="quick-action-card">
-                    <div class="quick-action-icon" style="background:#ede9fe;color:#7c3aed;"><i class="fa-solid fa-users-gear"></i></div>
+                    <div class="quick-action-icon" style="background:#ede9fe;color:#7c3aed;"><i class="fa-solid fa-bolt"></i></div>
                     <div>
-                        <div class="quick-action-label">Manajemen User</div>
-                        <div class="quick-action-desc">Kelola akun petugas</div>
+                        <div class="quick-action-label">Superadmin</div>
+                        <div class="quick-action-desc">Kelola sistem & user</div>
                     </div>
                 </a>
             </div>
@@ -258,26 +279,26 @@
                 <a href="{{ route('admin.panel_tu') }}" class="quick-action-card">
                     <div class="quick-action-icon" style="background:#dcfce7;color:#16a34a;"><i class="fa-solid fa-folder-open"></i></div>
                     <div>
-                        <div class="quick-action-label">Panel TU</div>
-                        <div class="quick-action-desc">Verifikasi berkas</div>
+                        <div class="quick-action-label">Administrasi</div>
+                        <div class="quick-action-desc">Pengajuan & Keuangan</div>
                     </div>
                 </a>
             </div>
             <div class="col-6 col-md-3">
-                <a href="{{ route('admin.panel_keuangan') }}" class="quick-action-card">
-                    <div class="quick-action-icon" style="background:#dbeafe;color:#2563eb;"><i class="fa-solid fa-file-invoice-dollar"></i></div>
+                <a href="{{ route('admin.layanan.evaluasi_dokumen') }}" class="quick-action-card">
+                    <div class="quick-action-icon" style="background:#dbeafe;color:#2563eb;"><i class="fa-solid fa-file-circle-check"></i></div>
                     <div>
-                        <div class="quick-action-label">Verifikasi Billing</div>
-                        <div class="quick-action-desc">Konfirmasi pembayaran</div>
+                        <div class="quick-action-label">Layanan & Standar</div>
+                        <div class="quick-action-desc">Evaluasi & Komisi Teknis</div>
                     </div>
                 </a>
             </div>
             <div class="col-6 col-md-3">
                 <a href="{{ route('admin.audit_berkas') }}" class="quick-action-card">
-                    <div class="quick-action-icon" style="background:#ffedd5;color:#c2410c;"><i class="fa-solid fa-file-circle-check"></i></div>
+                    <div class="quick-action-icon" style="background:#ffedd5;color:#c2410c;"><i class="fa-solid fa-flask"></i></div>
                     <div>
-                        <div class="quick-action-label">Audit Berkas</div>
-                        <div class="quick-action-desc">Audit kesesuaian</div>
+                        <div class="quick-action-label">Tim Audit & Lab</div>
+                        <div class="quick-action-desc">Audit & Laporan Lab</div>
                     </div>
                 </a>
             </div>
@@ -289,11 +310,12 @@
 
 
     {{-- ================================================================ --}}
-    {{-- ====== TATA USAHA DASHBOARD ====== --}}
+    {{-- ====== LAYANAN (ADMINISTRASI & KEUANGAN) DASHBOARD ====== --}}
     {{-- ================================================================ --}}
-    @if($userSub === 'tatausaha' && !$isSuperAdmin)
+    @if($userSub === 'layanan' && !$isSuperAdmin)
 
         <div class="row g-3 mb-4">
+            {{-- Stat Cards: Administrasi --}}
             <div class="col-6 col-md-3">
                 <a href="{{ route('admin.panel_tu') }}" class="stat-card">
                     <div class="stat-icon" style="background:#dcfce7;color:#16a34a;"><i class="fa-solid fa-file-arrow-up"></i></div>
@@ -334,60 +356,8 @@
                     </div>
                 </div>
             </div>
-        </div>
 
-        {{-- Akses Cepat TU --}}
-        <div class="section-title mb-3"><i class="fa-solid fa-bolt me-2" style="color:#047857;"></i>Menu Kerja</div>
-        <div class="row g-3 mb-4">
-            <div class="col-6 col-md-3">
-                <a href="{{ route('admin.panel_tu') }}" class="quick-action-card">
-                    <div class="quick-action-icon" style="background:#dcfce7;color:#16a34a;"><i class="fa-solid fa-folder-open"></i></div>
-                    <div>
-                        <div class="quick-action-label">Panel TU</div>
-                        <div class="quick-action-desc">Antrian verifikasi</div>
-                    </div>
-                </a>
-            </div>
-            <div class="col-6 col-md-3">
-                <a href="{{ route('admin.chat.index') }}" class="quick-action-card">
-                    <div class="quick-action-icon" style="background:#ede9fe;color:#7c3aed;"><i class="fa-solid fa-comments"></i></div>
-                    <div>
-                        <div class="quick-action-label">Chat Internal</div>
-                        <div class="quick-action-desc">Komunikasi tim</div>
-                    </div>
-                </a>
-            </div>
-            <div class="col-6 col-md-3">
-                <a href="{{ route('notifikasi.index') }}" class="quick-action-card">
-                    <div class="quick-action-icon" style="background:#fee2e2;color:#dc2626;"><i class="fa-solid fa-bell"></i></div>
-                    <div>
-                        <div class="quick-action-label">Notifikasi</div>
-                        <div class="quick-action-desc">Pesan masuk</div>
-                    </div>
-                </a>
-            </div>
-            <div class="col-6 col-md-3">
-                <a href="{{ route('admin.audit_berkas') }}" class="quick-action-card">
-                    <div class="quick-action-icon" style="background:#fef3c7;color:#ca8a04;"><i class="fa-solid fa-file-signature"></i></div>
-                    <div>
-                        <div class="quick-action-label">Audit Berkas</div>
-                        <div class="quick-action-desc">Cek kesesuaian</div>
-                    </div>
-                </a>
-            </div>
-        </div>
-
-        <hr class="section-divider">
-
-    @endif {{-- END TATA USAHA --}}
-
-
-    {{-- ================================================================ --}}
-    {{-- ====== LAYANAN & KEUANGAN DASHBOARD ====== --}}
-    {{-- ================================================================ --}}
-    @if($userSub === 'layanan' && !$isSuperAdmin)
-
-        <div class="row g-3 mb-4">
+            {{-- Stat Cards: Keuangan & Survailen --}}
             <div class="col-6 col-md-3">
                 <a href="{{ route('admin.panel_keuangan') }}" class="stat-card">
                     <div class="stat-icon" style="background:#fee2e2;color:#dc2626;"><i class="fa-solid fa-file-invoice-dollar"></i></div>
@@ -430,9 +400,48 @@
             </div>
         </div>
 
-        {{-- Akses Cepat Layanan --}}
-        <div class="section-title mb-3"><i class="fa-solid fa-bolt me-2" style="color:#2563eb;"></i>Menu Kerja</div>
+        {{-- Akses Cepat (Menu Kerja) --}}
+        <div class="section-title mb-3"><i class="fa-solid fa-bolt me-2" ></i>Menu Kerja</div>
         <div class="row g-3 mb-4">
+            {{-- Quick Actions: Administrasi --}}
+            <div class="col-6 col-md-3">
+                <a href="{{ route('admin.panel_tu') }}" class="quick-action-card">
+                    <div class="quick-action-icon" style="background:#dcfce7;color:#16a34a;"><i class="fa-solid fa-folder-open"></i></div>
+                    <div>
+                        <div class="quick-action-label">Panel Administrasi</div>
+                        <div class="quick-action-desc">Antrian verifikasi</div>
+                    </div>
+                </a>
+            </div>
+            <div class="col-6 col-md-3">
+                <a href="{{ route('admin.chat.index') }}" class="quick-action-card">
+                    <div class="quick-action-icon" style="background:#ede9fe;color:#7c3aed;"><i class="fa-solid fa-comments"></i></div>
+                    <div>
+                        <div class="quick-action-label">Chat Internal</div>
+                        <div class="quick-action-desc">Komunikasi tim</div>
+                    </div>
+                </a>
+            </div>
+            <div class="col-6 col-md-3">
+                <a href="{{ route('notifikasi.index') }}" class="quick-action-card">
+                    <div class="quick-action-icon" style="background:#fee2e2;color:#dc2626;"><i class="fa-solid fa-bell"></i></div>
+                    <div>
+                        <div class="quick-action-label">Notifikasi</div>
+                        <div class="quick-action-desc">Pesan masuk</div>
+                    </div>
+                </a>
+            </div>
+            <div class="col-6 col-md-3">
+                <a href="{{ route('admin.audit_berkas') }}" class="quick-action-card">
+                    <div class="quick-action-icon" style="background:#fef3c7;color:#ca8a04;"><i class="fa-solid fa-file-signature"></i></div>
+                    <div>
+                        <div class="quick-action-label">Audit Berkas</div>
+                        <div class="quick-action-desc">Cek kesesuaian</div>
+                    </div>
+                </a>
+            </div>
+
+            {{-- Quick Actions: Layanan & Keuangan --}}
             <div class="col-6 col-md-3">
                 <a href="{{ route('admin.panel_keuangan') }}" class="quick-action-card">
                     <div class="quick-action-icon" style="background:#dbeafe;color:#2563eb;"><i class="fa-solid fa-file-invoice-dollar"></i></div>
@@ -525,7 +534,7 @@
         </div>
 
         {{-- Akses Cepat Audit --}}
-        <div class="section-title mb-3"><i class="fa-solid fa-bolt me-2" style="color:#c2410c;"></i>Menu Kerja</div>
+        <div class="section-title mb-3"><i class="fa-solid fa-bolt me-2" ></i>Menu Kerja</div>
         <div class="row g-3 mb-4">
             <div class="col-6 col-md-3">
                 <a href="{{ route('admin.audit_berkas') }}" class="quick-action-card">
@@ -576,14 +585,13 @@
     <div class="d-flex justify-content-between align-items-center mb-3">
         <div>
             <div class="section-title">
-                <i class="fa-solid fa-list-check me-2" style="color:#16a34a;"></i>
-                @if($userSub === 'tatausaha') Antrian Verifikasi
-                @elseif($userSub === 'layanan') Pengajuan & Billing
+                <i class="fa-solid fa-list-check me-2" ></i>
+                @if($userSub === 'layanan') Antrian Verifikasi
                 @elseif($userSub === 'audit')   Pengajuan Perlu Audit
                 @else Semua Pengajuan
                 @endif
             </div>
-            <p class="section-sub mb-0">20 pengajuan terbaru • Data real-time</p>
+            <p class="section-sub mb-0">20 pengajuan terbaru â€¢ Data real-time</p>
         </div>
         <a href="{{ route('admin.panel_tu') }}" class="btn btn-sm" style="background:#f1f5f9;color:#475569;border-radius:8px;font-size:12px;font-weight:600;">
             Lihat Semua <i class="fa-solid fa-arrow-right ms-1"></i>
@@ -611,10 +619,14 @@
                         $namaKlien = $item->user->nama_perusahaan ?? $item->user->nama_penghubung ?? explode('@', $item->user->email ?? '')[0] ?? '-';
                     @endphp
                     <tr>
-                        <td class="ps-4 fw-bold" style="color:#475569;">#{{ str_pad($item->id, 5, '0', STR_PAD_LEFT) }}</td>
+                        <td class="ps-4 fw-bold" >#{{ str_pad($item->id, 5, '0', STR_PAD_LEFT) }}</td>
                         <td>
-                            <div class="fw-semibold" style="color:#1e293b;font-size:13px;">{{ Str::limit($namaKlien, 28) }}</div>
-                            <div class="text-muted" style="font-size:11px;">{{ $item->user->email ?? '-' }}</div>
+                            @php
+                                $df = is_array($item->data_form) ? $item->data_form : (json_decode($item->data_form, true) ?? []);
+                                $merek = $df['merek_produk'] ?? ($df['merek'] ?? 'Tanpa Merek');
+                            @endphp
+                            <div class="fw-semibold" style="color:#1e293b;font-size:13px;">{{ Str::limit($merek, 28) }}</div>
+                            <div class="text-muted" style="font-size:11px;">{{ Str::limit($namaKlien, 28) }}</div>
                         </td>
                         <td>
                             @php $jenis = $item->jenis_sertifikasi ?? $item->jenis ?? '-'; @endphp
@@ -631,15 +643,66 @@
                                     {{ $inv->status === 'paid' ? 'Lunas' : ($inv->status === 'pending_verification' ? 'Konfirmasi' : ucfirst($inv->status)) }}
                                 </span>
                             @else
-                                <span style="font-size:11px;color:#94a3b8;">—</span>
+                                <span style="font-size:11px;color:#94a3b8;">â€”</span>
                             @endif
                         </td>
                         @endif
                         <td style="color:#64748b;font-size:12px;">{{ $item->created_at->translatedFormat('d M Y') }}</td>
                         <td class="pe-4 text-end">
-                            <a href="{{ route('admin.ceklis_kelengkapan', $item->id) }}" class="btn btn-sm btn-light border" style="border-radius:8px;font-size:11px;font-weight:600;">
-                                Detail
-                            </a>
+                            @php
+                                if (in_array($item->status, ['diajukan', 'perbaikan'])) {
+                                    $detailRoute = route('admin.panel_tu');
+                                } else {
+                                    $detailRoute = route('admin.ceklis_kelengkapan', $item->id);
+                                }
+                                
+                                if (in_array($item->status, ['mengisi_perjanjian', 'menunggu_ttd', 'billing', 'billing_1', 'billing_2', 'billing_3', 'billing_4'])) {
+                                    $detailRoute = route('admin.panel_keuangan');
+                                } elseif (in_array($item->status, ['evaluasi_724_audit', 'proses_audit', 'evaluasi', 'proses_evaluasi', 'keputusan', 'menunggu_persetujuan_jadwal'])) {
+                                    $detailRoute = route('admin.audit_berkas');
+                                } elseif ($item->status === 'menunggu_lhp') {
+                                    $detailRoute = route('admin.hasil_lab');
+                                }
+                            @endphp
+                            <div class="btn-group" role="group">
+                                <a href="{{ $detailRoute }}" class="btn btn-sm btn-light border" style="border-radius:8px 0 0 8px;font-size:11px;font-weight:600;">
+                                    Detail
+                                </a>
+                                <div class="btn-group" role="group">
+                                    <button type="button" class="btn btn-sm btn-light border dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false" style="border-radius:0 8px 8px 0;font-size:11px;">
+                                        <span class="visually-hidden">Menu</span>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end shadow" style="font-size:13px;">
+                                        @if($item->status === 'menunggu_lhp')
+                                            <li><a class="dropdown-item" href="{{ route('admin.pengajuan.form_lhp', $item->id) }}"><i class="bi bi-upload me-2 text-danger"></i>Unggah LHP</a></li>
+                                            <li><hr class="dropdown-divider"></li>
+                                        @endif
+                                        <li><h6 class="dropdown-header"><i class="bi bi-file-earmark-text me-1"></i> Isi Dokumen</h6></li>
+                                        <li><a class="dropdown-item" href="{{ route('admin.pengajuan.isi_form', ['id' => $item->id, 'form_type' => 'perjanjian']) }}"><i class="bi bi-handshake me-2 text-success"></i>Buat Perjanjian</a></li>
+                                        <li><a class="dropdown-item" href="{{ route('admin.pengajuan.isi_form', ['id' => $item->id, 'form_type' => 'rencana_audit']) }}"><i class="bi bi-calendar-check me-2 text-primary"></i>Rencana Audit</a></li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li><a class="dropdown-item" href="{{ route('admin.ceklis_kelengkapan', $item->id) }}"><i class="bi bi-ui-checks me-2 text-info"></i>Ceklis 7.2-4</a></li>
+                                        @if($isSuperAdmin)
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li><h6 class="dropdown-header text-danger"><i class="fa-solid fa-triangle-exclamation me-1"></i> Bypass (Superadmin)</h6></li>
+                                        <li>
+                                            <form action="{{ route('admin.pengajuan.teruskan', $item->id) }}" method="POST">
+                                                @csrf
+                                                <input type="hidden" name="status" value="perbaikan">
+                                                <button type="submit" class="dropdown-item text-danger" onclick="return confirm('Yakin kembalikan ke Perbaikan?')">Kembalikan ke Perbaikan</button>
+                                            </form>
+                                        </li>
+                                        <li>
+                                            <form action="{{ route('admin.pengajuan.teruskan', $item->id) }}" method="POST">
+                                                @csrf
+                                                <input type="hidden" name="status" value="billing_1">
+                                                <button type="submit" class="dropdown-item text-danger" onclick="return confirm('Yakin ubah ke Billing 1?')">Force to Billing 1</button>
+                                            </form>
+                                        </li>
+                                        @endif
+                                    </ul>
+                                </div>
+                            </div>
                         </td>
                     </tr>
                     @empty
@@ -659,3 +722,4 @@
 
 </div>
 @endsection
+

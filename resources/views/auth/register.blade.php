@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Buat Akun - LSPro BRMP</title>
     
-    <link rel="stylesheet" href="{{ asset('css/login_style.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/login_style.css') }}?v={{ time() }}">
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"/>
 </head>
@@ -47,13 +47,7 @@
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label>No. Telp/HP *</label>
-                    <div class="input-icon-wrapper">
-                        <i class="fa-solid fa-phone"></i>
-                        <input type="text" name="no_telp" class="form-control" placeholder="Contoh: 08123456789" value="{{ old('no_telp') }}" required>
-                    </div>
-                </div>
+
 
                 <div class="form-group">
                     <label>E-mail *</label>
@@ -68,7 +62,8 @@
                     <label>Password *</label>
                     <div class="input-icon-wrapper">
                         <i class="fa-solid fa-lock"></i>
-                        <input type="password" name="password" class="form-control" placeholder="Minimal 6 karakter" required>
+                        <input type="password" name="password" id="password" class="form-control" placeholder="Minimal 6 karakter" required>
+                        <i class="fa-solid fa-eye toggle-password" style="position: absolute; left: auto !important; right: 15px; top: 50%; transform: translateY(-50%); cursor: pointer; color: #94a3b8;" onclick="togglePasswordVisibility('password', this)"></i>
                     </div>
                     @error('password') <span style="color: #ef4444; font-size: 12px; margin-top: 5px; display: block;">{{ $message }}</span> @enderror
                 </div>
@@ -82,16 +77,18 @@
                 </div>
 
                 <div class="form-group" style="margin-top: 25px;">
-                    <label>Pakta Integritas</label>
-                    <div style="height: 85px; overflow-y: auto; border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 12px; font-size: 12px; color: #475569; background: #f8fafc; margin-bottom: 12px; line-height: 1.6;">
-                        <strong>KEMENTERIAN PERTANIAN - PAKTA INTEGRITAS</strong><br>
-                        Saya yang mendaftar di sistem ini menyatakan sebagai berikut:<br>
-                        1. Berperan secara pro aktif dalam upaya pencegahan dan pemberantasan Korupsi, Kolusi, dan Nepotisme serta tidak melibatkan diri dalam perbuatan tercela.<br>
-                        2. Tidak meminta atau menerima pemberian secara langsung atau tidak langsung berupa suap, hadiah, bantuan, atau bentuk lainnya yang tidak sesuai dengan ketentuan yang berlaku.
+                    <label>Kebijakan Privasi</label>
+                    <div style="height: 100px; overflow-y: auto; border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 12px; font-size: 12px; color: #475569; background: #f8fafc; margin-bottom: 12px; line-height: 1.6;">
+                        <strong>KEBIJAKAN PRIVASI - LAYANAN SERTIFIKASI PRODUK BBPM SDLP</strong><br><br>
+                        Dengan mendaftar di sistem ini, Anda menyetujui ketentuan berikut:<br>
+                        1. Data pribadi dan data perusahaan yang Anda berikan akan digunakan semata-mata untuk keperluan proses sertifikasi produk oleh LSPro BBPM SDLP.<br>
+                        2. Kami menjaga kerahasiaan seluruh informasi yang Anda sampaikan dan tidak akan membagikannya kepada pihak ketiga tanpa persetujuan Anda, kecuali diwajibkan oleh peraturan perundang-undangan yang berlaku.<br>
+                        3. Seluruh dokumen yang diunggah akan disimpan secara aman dan hanya dapat diakses oleh personel berwenang dalam lingkup layanan sertifikasi.<br>
+                        4. Anda berhak untuk meminta penghapusan data pribadi setelah proses sertifikasi selesai, dengan menghubungi kami melalui kontak resmi yang tersedia.
                     </div>
                     <label style="display: flex; align-items: flex-start; gap: 10px; font-weight: normal; cursor: pointer; font-size: 13px; color: #334155;">
                         <input type="checkbox" required style="width: 18px; height: 18px; cursor: pointer; margin-top: 2px;">
-                        <span>Saya telah membaca, memahami, dan menyetujui isi Pakta Integritas di atas.</span>
+                        <span>Saya telah membaca, memahami, dan menyetujui Kebijakan Privasi di atas.</span>
                     </label>
                 </div>
 
@@ -106,5 +103,19 @@
 
     <div class="auth-right"></div>
 
+    <script>
+        function togglePasswordVisibility(inputId, iconElement) {
+            const input = document.getElementById(inputId);
+            if (input.type === 'password') {
+                input.type = 'text';
+                iconElement.classList.remove('fa-eye');
+                iconElement.classList.add('fa-eye-slash');
+            } else {
+                input.type = 'password';
+                iconElement.classList.remove('fa-eye-slash');
+                iconElement.classList.add('fa-eye');
+            }
+        }
+    </script>
 </body>
 </html>

@@ -45,25 +45,21 @@
                     <tbody>
                         @forelse($users as $user)
                         <tr>
-                            <td class="ps-4 fw-semibold">{{ $user->nama_penghubung }}</td>
-                            <td>{{ $user->email }}</td>
-                            <td>
-                                @if($user->sub_role === 'tatausaha')
-                                    <span class="badge bg-primary">Tata Usaha</span>
-                                @elseif($user->sub_role === 'layanan')
-                                    <span class="badge bg-info">Layanan</span>
-                                @elseif($user->sub_role === 'audit')
-                                    <span class="badge bg-warning text-dark">Audit</span>
+                            <td class="ps-4 fw-semibold" data-label="Nama Petugas">{{ $user->nama_penghubung }}</td>
+                            <td data-label="Email">{{ $user->email }}</td>
+                            <td data-label="Role / Divisi">
+                                @if($user->sub_role === 'layanan')
+                                    <span class="badge bg-primary">Administrasi</span>
                                 @endif
                             </td>
-                            <td>
+                            <td data-label="Status">
                                 @if($user->is_active)
                                     <span class="badge bg-success">Aktif</span>
                                 @else
                                     <span class="badge bg-secondary">Nonaktif</span>
                                 @endif
                             </td>
-                            <td class="text-end pe-4">
+                            <td class="text-end pe-4" data-label="Aksi">
                                 <div class="dropdown">
                                     <button class="btn btn-sm btn-light border" type="button" data-bs-toggle="dropdown">
                                         Opsi <i class="fa-solid fa-chevron-down ms-1" style="font-size: 10px;"></i>
@@ -139,9 +135,9 @@
                     <div class="mb-3">
                         <label class="form-label">Role / Divisi</label>
                         <select name="sub_role" class="form-select" required>
+                            <option value="layanan" {{ $user->sub_role == 'layanan' ? 'selected' : '' }}>Administrasi/Layanan</option>
                             <option value="tatausaha" {{ $user->sub_role == 'tatausaha' ? 'selected' : '' }}>Tata Usaha</option>
-                            <option value="layanan" {{ $user->sub_role == 'layanan' ? 'selected' : '' }}>Layanan</option>
-                            <option value="audit" {{ $user->sub_role == 'audit' ? 'selected' : '' }}>Audit</option>
+                            <option value="audit" {{ $user->sub_role == 'audit' ? 'selected' : '' }}>Tim Audit</option>
                         </select>
                     </div>
                 </div>
@@ -203,9 +199,9 @@
                     <label class="form-label">Role / Divisi</label>
                     <select name="sub_role" class="form-select" required>
                         <option value="">-- Pilih Role --</option>
+                        <option value="layanan">Administrasi/Layanan</option>
                         <option value="tatausaha">Tata Usaha</option>
-                        <option value="layanan">Layanan</option>
-                        <option value="audit">Audit</option>
+                        <option value="audit">Tim Audit</option>
                     </select>
                 </div>
             </div>

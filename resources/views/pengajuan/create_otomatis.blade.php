@@ -11,6 +11,12 @@
         border: 1px solid #e2e8f0;
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
     }
+    /* Override Tom Select Yellow Highlight */
+    .ts-wrapper mark, .ts-wrapper .highlight {
+        background: transparent !important;
+        color: inherit !important;
+        font-weight: bold;
+    }
     .form-header-title {
         display: flex;
         align-items: center;
@@ -244,6 +250,9 @@
                 </div>
             </div>
             <div>
+                <button type="button" class="btn btn-primary btn-sm rounded-pill px-3 me-2" onclick="demoFillForm()">
+                    <i class="fa-solid fa-magic me-1"></i> Isi Otomatis
+                </button>
                 <button type="button" class="btn btn-outline-success btn-sm rounded-pill px-3" id="btnManualSave">
                     <i class="fa-solid fa-floppy-disk me-1"></i> Simpan Draft
                 </button>
@@ -251,9 +260,10 @@
         </div>
 
         @if($jenisSertifikasi)
-            <div class="alert alert-success border-0 shadow-sm mb-4 d-flex align-items-center justify-content-between" style="border-radius: 12px; background-color: #f0fdf4; color: #115e59;">
+            <div class="alert alert-success d-flex align-items-center mb-4 border-0 shadow-sm" style="background-color: #ecfdf5; color: #065f46;">
+                <i class="fa-solid fa-leaf fs-5 me-3"></i>
                 <div>
-                    <i class="fa-solid fa-leaf me-2"></i> Kategori Produk Sertifikasi: <strong>{{ $jenisSertifikasi }}</strong>
+                    Kategori Produk Sertifikasi: <strong>{{ $jenisSertifikasi }}</strong>
                 </div>
             </div>
         @endif
@@ -261,6 +271,17 @@
         @if(session('error'))
             <div class="alert alert-danger border-0 shadow-sm mb-4" style="border-radius: 10px; font-size: 14px;">
                 <i class="fa-solid fa-circle-exclamation me-2"></i> {{ session('error') }}
+            </div>
+        @endif
+
+        @if($errors->any())
+            <div class="alert alert-danger border-0 shadow-sm mb-4" style="border-radius: 10px; font-size: 14px;">
+                <h6 class="alert-heading fw-bold"><i class="fa-solid fa-triangle-exclamation me-2"></i>Terdapat kesalahan pada isian form:</h6>
+                <ul class="mb-0">
+                    @foreach($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
             </div>
         @endif
 
@@ -289,7 +310,7 @@
             </div>
         </div>
 
-        <form action="{{ route('pengajuan.store') }}" method="POST" enctype="multipart/form-data" id="formSertifikasi">
+        <form action="{{ route('pengajuan.store') }}" method="POST" enctype="multipart/form-data" id="formSertifikasi" novalidate>
             @csrf
             <input type="hidden" name="tahap" value="{{ $tahap ?? '1' }}">
             <input type="hidden" name="jenis_sertifikasi" value="{{ $jenisSertifikasi ?? '' }}">
@@ -312,8 +333,9 @@
                         <input type="text" name="lampiran" class="form-control form-control-custom" value="{{ $val('lampiran', '1 Berkas') }}" placeholder="Contoh: 1 Berkas" required>
                     </div>
                     <div class="col-md-4 d-flex flex-column">
-                        <label class="form-label-weight">Perihal Surat <span class="text-danger">*</span></label>
-                        <input type="text" name="perihal" class="form-control form-control-custom" value="{{ $val('perihal', 'Permohonan Sertifikasi SPPT SNI') }}" required>
+                        <label class="form-label-weight">Perihal <span class="text-danger">*</span></label>
+                        <input type="text" name="perihal" class="form-control form-control-custom" value="{{ $val('perihal', 'Permohonan Sertifikasi Sertifikat Kesesuaian SNI') }}" required>
+                        <small class="text-muted">Cth: Permohonan Sertifikasi Sertifikat Kesesuaian SNI</small>
                     </div>
                 </div>
 
@@ -390,12 +412,16 @@
                         <textarea name="alamat_kantor" rows="2" class="form-control form-control-custom" placeholder="Alamat lengkap kantor pusat perusahaan..." required>{{ $val('alamat_kantor') }}</textarea>
                     </div>
                     <div class="col-md-4 d-flex flex-column">
-                        <label class="form-label-weight">Kabupaten/Kota Kantor <span class="text-danger">*</span></label>
-                        <input type="text" name="kota_kantor" class="form-control form-control-custom" value="{{ $val('kota_kantor') }}" required>
+                        <label class="form-label-weight">Provinsi Kantor <span class="text-danger">*</span></label>
+                        <select name="provinsi_kantor" class="form-select form-control-custom tom-select" required data-value="{{ $val('provinsi_kantor') }}">
+                            <option value="">-- Pilih Provinsi --</option>
+                        </select>
                     </div>
                     <div class="col-md-4 d-flex flex-column">
-                        <label class="form-label-weight">Provinsi Kantor <span class="text-danger">*</span></label>
-                        <input type="text" name="provinsi_kantor" class="form-control form-control-custom" value="{{ $val('provinsi_kantor') }}" required>
+                        <label class="form-label-weight">Kabupaten/Kota Kantor <span class="text-danger">*</span></label>
+                        <select name="kota_kantor" class="form-select form-control-custom tom-select" required data-value="{{ $val('kota_kantor') }}">
+                            <option value="">-- Pilih Provinsi Dahulu --</option>
+                        </select>
                     </div>
                     <div class="col-md-4 d-flex flex-column">
                         <label class="form-label-weight">Telp/Fax Kantor</label>
@@ -416,12 +442,16 @@
                         <textarea name="alamat_pabrik" rows="2" class="form-control form-control-custom" placeholder="Alamat lengkap lokasi pabrik pembuatan produk..." required>{{ $val('alamat_pabrik') }}</textarea>
                     </div>
                     <div class="col-md-4 d-flex flex-column">
-                        <label class="form-label-weight">Kabupaten/Kota Pabrik <span class="text-danger">*</span></label>
-                        <input type="text" name="kota_pabrik" class="form-control form-control-custom" value="{{ $val('kota_pabrik') }}" required>
+                        <label class="form-label-weight">Provinsi Pabrik <span class="text-danger">*</span></label>
+                        <select name="provinsi_pabrik" class="form-select form-control-custom tom-select" required data-value="{{ $val('provinsi_pabrik') }}">
+                            <option value="">-- Pilih Provinsi --</option>
+                        </select>
                     </div>
                     <div class="col-md-4 d-flex flex-column">
-                        <label class="form-label-weight">Provinsi Pabrik <span class="text-danger">*</span></label>
-                        <input type="text" name="provinsi_pabrik" class="form-control form-control-custom" value="{{ $val('provinsi_pabrik') }}" required>
+                        <label class="form-label-weight">Kabupaten/Kota Pabrik <span class="text-danger">*</span></label>
+                        <select name="kota_pabrik" class="form-select form-control-custom tom-select" required data-value="{{ $val('kota_pabrik') }}">
+                            <option value="">-- Pilih Provinsi Dahulu --</option>
+                        </select>
                     </div>
                     <div class="col-md-4 d-flex flex-column">
                         <label class="form-label-weight">Telp/Fax Pabrik</label>
@@ -430,6 +460,14 @@
                     <div class="col-md-6 d-flex flex-column">
                         <label class="form-label-weight">Email / Website Pabrik</label>
                         <input type="text" name="email_pabrik" class="form-control form-control-custom" value="{{ $val('email_pabrik') }}">
+                    </div>
+                    <div class="col-md-12 d-flex flex-column mt-2 mb-2">
+                        <label class="form-label-weight">Apakah perusahaan ini bertindak sebagai Pemaklon? <span class="text-danger">*</span></label>
+                        <select name="is_pemaklon" class="form-select form-control-custom" required>
+                            <option value="">-- Pilih Opsi --</option>
+                            <option value="Ya" {{ $val('is_pemaklon') == 'Ya' ? 'selected' : '' }}>Ya</option>
+                            <option value="Tidak" {{ $val('is_pemaklon') == 'Tidak' ? 'selected' : '' }}>Tidak</option>
+                        </select>
                     </div>
                     <div class="col-md-6 d-flex flex-column">
                         <label class="form-label-weight">Bahasa yang digunakan di Pabrik <span class="text-danger">*</span></label>
@@ -445,12 +483,16 @@
                     </div>
                     <div class="col-md-4 d-flex flex-column">
                         <label class="form-label-weight">Waktu Tempuh <span class="text-danger">*</span></label>
-                        <input type="text" name="waktu_pabrik" class="form-control form-control-custom" value="{{ $val('waktu_pabrik') }}" placeholder="Cth: 60 Menit" required>
+                        <div class="input-group">
+                            <input type="number" name="waktu_pabrik" class="form-control form-control-custom" value="{{ (int) $val('waktu_pabrik') }}" placeholder="Cth: 60" min="1" required>
+                            <span class="input-group-text">Menit</span>
+                        </div>
                     </div>
                 </div>
 
+            <div id="importir_section" style="display: none;">
                 <div class="section-divider-title mt-4">
-                    <i class="fa-solid fa-ship"></i> DATA IMPORTIR / PEMAKLON <span class="text-muted" style="font-size: 11px; text-transform: lowercase;">(opsional)</span>
+                    <i class="fa-solid fa-ship"></i> DATA IMPORTIR <span class="text-muted" style="font-size: 11px; text-transform: lowercase;">(opsional)</span>
                 </div>
                 <div class="row g-3 mb-4">
                     <div class="col-md-4 d-flex flex-column">
@@ -468,6 +510,23 @@
                 </div>
             </div>
 
+            <div id="maklon_section" style="display: none;">
+                <div class="section-divider-title mt-4">
+                    <i class="fa-solid fa-industry"></i> DATA PEMAKLON
+                </div>
+                <div class="row g-3 mb-4">
+                    <div class="col-md-6 d-flex flex-column">
+                        <label class="form-label-weight">Nama Pemaklon</label>
+                        <input type="text" name="nama_pemaklon" class="form-control form-control-custom" value="{{ $val('nama_pemaklon') }}">
+                    </div>
+                    <div class="col-md-6 d-flex flex-column">
+                        <label class="form-label-weight">Alamat Pemaklon</label>
+                        <input type="text" name="alamat_pemaklon" class="form-control form-control-custom" value="{{ $val('alamat_pemaklon') }}">
+                    </div>
+                </div>
+            </div>
+            </div>
+
             {{-- STEP 3: SPESIFIKASI PRODUK --}}
             <div class="step-section" data-step="3">
                 <div class="section-divider-title">
@@ -475,8 +534,20 @@
                 </div>
                 <div class="row g-3 mb-4">
                     <div class="col-md-6 d-flex flex-column">
-                        <label class="form-label-weight">Nama Komoditas Pupuk <span class="text-danger">*</span></label>
-                        <input type="text" name="nama_produk" class="form-control form-control-custom" value="{{ $val('nama_produk') }}" placeholder="Contoh: Pupuk NPK Padat" required>
+                        <label class="form-label-weight">Komoditas Produk <span class="text-danger">*</span></label>
+                        <select name="nama_produk" id="nama_produk" class="form-select form-control-custom" required onchange="autoFillSNI()">
+                            <option value="">-- Pilih Komoditas --</option>
+                            <option value="Pupuk NPK Padat" data-judul="Pupuk NPK Padat" data-sni="SNI 2803:2012" {{ $val('nama_produk') == 'Pupuk NPK Padat' ? 'selected' : '' }}>Pupuk NPK Padat</option>
+                            <option value="Pupuk Urea" data-judul="Pupuk Urea" data-sni="SNI 2801:2010" {{ $val('nama_produk') == 'Pupuk Urea' ? 'selected' : '' }}>Pupuk Urea</option>
+                            <option value="Pupuk Fosfat Alam" data-judul="Pupuk Fosfat Alam" data-sni="SNI 02-3776-2005" {{ $val('nama_produk') == 'Pupuk Fosfat Alam' ? 'selected' : '' }}>Pupuk Fosfat Alam</option>
+                            <option value="Pupuk SP-36" data-judul="Pupuk SP-36" data-sni="SNI 02-3769-2005" {{ $val('nama_produk') == 'Pupuk SP-36' ? 'selected' : '' }}>Pupuk SP-36</option>
+                            <option value="Pupuk Kalium Klorida (KCl)" data-judul="Pupuk Kalium Klorida (KCl)" data-sni="SNI 02-2805-2005" {{ $val('nama_produk') == 'Pupuk Kalium Klorida (KCl)' ? 'selected' : '' }}>Pupuk Kalium Klorida (KCl)</option>
+                            <option value="Pupuk ZA" data-judul="Pupuk Amonium Sulfat (ZA)" data-sni="SNI 02-1760-2005" {{ $val('nama_produk') == 'Pupuk ZA' ? 'selected' : '' }}>Pupuk Amonium Sulfat (ZA)</option>
+                            <option value="Kapur untuk Pertanian" data-judul="Kapur untuk Pertanian" data-sni="SNI 482:2018" {{ $val('nama_produk') == 'Kapur untuk Pertanian' ? 'selected' : '' }}>Kapur untuk Pertanian</option>
+                            <option value="Pupuk Dolomit" data-judul="Pupuk Dolomit" data-sni="SNI 02-2804-2005" {{ $val('nama_produk') == 'Pupuk Dolomit' ? 'selected' : '' }}>Pupuk Dolomit</option>
+                            <option value="Pupuk Kiserit" data-judul="Pupuk Kiserit" data-sni="SNI 02-2807-2005" {{ $val('nama_produk') == 'Pupuk Kiserit' ? 'selected' : '' }}>Pupuk Kiserit</option>
+                            <option value="Pupuk Organik Padat" data-judul="Pupuk Organik Padat" data-sni="SNI 7763:2018" {{ $val('nama_produk') == 'Pupuk Organik Padat' ? 'selected' : '' }}>Pupuk Organik Padat</option>
+                        </select>
                     </div>
                     <div class="col-md-6 d-flex flex-column">
                         <label class="form-label-weight">Judul SNI <span class="text-danger">*</span></label>
@@ -587,6 +658,35 @@
                     </div>
                 </div>
 
+                <h5 class="fw-bold text-dark mb-3">Dokumen Lampiran Pendukung:</h5>
+                <div class="row g-3 mb-4">
+                    <div class="col-md-6 d-flex flex-column">
+                        <label class="form-label-weight">Kop Surat Perusahaan <span class="text-danger">*</span></label>
+                        <input type="file" name="kop_surat" class="form-control form-control-custom" accept=".png,.jpg,.jpeg,.pdf" required>
+                        <small class="text-muted">Untuk digabungkan secara otomatis pada permohonan sertifikasi.</small>
+                    </div>
+                    <div class="col-md-6 d-flex flex-column">
+                        <label class="form-label-weight">Sketsa Logo Produk <span class="text-danger">*</span></label>
+                        <input type="file" name="sketsa_logo" class="form-control form-control-custom" accept=".png,.jpg,.jpeg" required>
+                    </div>
+                    <div class="col-md-3 d-flex flex-column">
+                        <label class="form-label-weight">Foto Depan</label>
+                        <input type="file" name="foto_depan" class="form-control form-control-custom" accept=".png,.jpg,.jpeg">
+                    </div>
+                    <div class="col-md-3 d-flex flex-column">
+                        <label class="form-label-weight">Foto Belakang</label>
+                        <input type="file" name="foto_belakang" class="form-control form-control-custom" accept=".png,.jpg,.jpeg">
+                    </div>
+                    <div class="col-md-3 d-flex flex-column">
+                        <label class="form-label-weight">Foto Kanan</label>
+                        <input type="file" name="foto_kanan" class="form-control form-control-custom" accept=".png,.jpg,.jpeg">
+                    </div>
+                    <div class="col-md-3 d-flex flex-column">
+                        <label class="form-label-weight">Foto Kiri</label>
+                        <input type="file" name="foto_kiri" class="form-control form-control-custom" accept=".png,.jpg,.jpeg">
+                    </div>
+                </div>
+
                 <h5 class="fw-bold text-dark mb-3">Tinjauan Isian Data:</h5>
                 <div class="table-responsive mb-4">
                     <table class="table table-bordered summary-table">
@@ -621,7 +721,7 @@
 
                 <div class="alert alert-info border-0 shadow-sm" style="border-radius: 12px; font-size: 14px;">
                     <i class="fa-solid fa-circle-info me-2"></i>
-                    Dokumen lampiran fisik pendukung lainnya diunggah secara terpisah setelah permohonan diverifikasi oleh Tata Usaha.
+                    Dokumen lampiran fisik pendukung lainnya diunggah secara terpisah setelah permohonan diverifikasi oleh Administrasi.
                 </div>
             </div>
 
@@ -638,8 +738,8 @@
                     <button type="button" class="btn-submit-green" id="btnNext">
                         Selanjutnya <i class="fa-solid fa-arrow-right ms-2"></i>
                     </button>
-                    <button type="submit" class="btn-submit-green" id="btnSubmit" style="display: none; background: #0284c7;">
-                        Kirim &amp; Ajukan Formulir <i class="fa-solid fa-paper-plane ms-2"></i>
+                    <button type="submit" class="btn btn-success rounded-pill px-4 ms-auto" id="btnSubmitForm" style="display: none;">
+                        Kirim Permohonan <i class="fa-solid fa-paper-plane ms-2"></i>
                     </button>
                 </div>
             </div>
@@ -653,7 +753,20 @@
     <span>Menyimpan draft...</span>
 </div>
 
+<link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
+<script src="{{ asset('js/daerah.js') }}?v={{ time() }}"></script>
+
 <script>
+    function autoFillSNI() {
+        const select = document.getElementById('nama_produk');
+        const option = select.options[select.selectedIndex];
+        if (option && option.value) {
+            document.querySelector('[name="judul_sni"]').value = option.getAttribute('data-judul');
+            document.querySelector('[name="no_sni"]').value = option.getAttribute('data-sni');
+        }
+    }
+
     let currentStep = 1;
     const totalSteps = 5;
     const form = document.getElementById('formSertifikasi');
@@ -693,11 +806,11 @@
 
         if (currentStep === totalSteps) {
             document.getElementById('btnNext').style.display = 'none';
-            document.getElementById('btnSubmit').style.display = 'inline-flex';
+            document.getElementById('btnSubmitForm').style.display = 'inline-flex';
             updateSummaryData();
         } else {
             document.getElementById('btnNext').style.display = 'inline-flex';
-            document.getElementById('btnSubmit').style.display = 'none';
+            document.getElementById('btnSubmitForm').style.display = 'none';
         }
     }
 
@@ -801,5 +914,117 @@
 
     // Initial load
     updateStepUI();
+
+    function setupProvinsiKota(provSelectSelector, kotaSelectSelector) {
+        const provEl = document.querySelector(provSelectSelector);
+        const kotaEl = document.querySelector(kotaSelectSelector);
+        
+        if (!provEl || !kotaEl) return;
+        
+        if (typeof regencies !== 'undefined') {
+            Object.keys(regencies).forEach(prov => {
+                const opt = document.createElement('option');
+                opt.value = prov;
+                opt.textContent = prov;
+                provEl.appendChild(opt);
+            });
+        }
+        
+        const provTs = new TomSelect(provEl, { create: false, placeholder: '-- Pilih Provinsi --' });
+        let kotaTs = new TomSelect(kotaEl, { create: false, placeholder: '-- Pilih Kota/Kabupaten --' });
+        
+        provEl.addEventListener('change', function() {
+            const selectedProv = this.value;
+            kotaTs.clearOptions();
+            kotaTs.clear();
+            
+            if (typeof regencies !== 'undefined' && regencies[selectedProv]) {
+                regencies[selectedProv].forEach(function(kota) {
+                    kotaTs.addOption({value: kota, text: kota});
+                });
+            }
+        });
+
+        if (provEl.getAttribute('data-value')) {
+            provTs.setValue(provEl.getAttribute('data-value'));
+            setTimeout(() => {
+                if (kotaEl.getAttribute('data-value')) {
+                    if (!kotaTs.options[kotaEl.getAttribute('data-value')]) {
+                        kotaTs.addOption({value: kotaEl.getAttribute('data-value'), text: kotaEl.getAttribute('data-value')});
+                    }
+                    kotaTs.setValue(kotaEl.getAttribute('data-value'));
+                }
+            }, 100);
+        }
+    }
+
+    setupProvinsiKota('select[name="provinsi_kantor"]', 'select[name="kota_kantor"]');
+    setupProvinsiKota('select[name="provinsi_pabrik"]', 'select[name="kota_pabrik"]');
+
+    // Importir & Maklon Toggle Logic
+    function toggleDynamicSections() {
+        const statusEl = document.querySelector('select[name="status_pemohon"]');
+        const maklonEl = document.querySelector('select[name="is_pemaklon"]');
+        const importirSection = document.getElementById('importir_section');
+        const maklonSection = document.getElementById('maklon_section');
+        
+        if (statusEl && importirSection) {
+            importirSection.style.display = statusEl.value === 'Importir/Agen' ? 'block' : 'none';
+        }
+        
+        if (maklonEl && maklonSection) {
+            maklonSection.style.display = maklonEl.value === 'Ya' ? 'block' : 'none';
+        }
+    }
+    
+    document.querySelector('select[name="status_pemohon"]').addEventListener('change', toggleDynamicSections);
+    document.querySelector('select[name="is_pemaklon"]').addEventListener('change', toggleDynamicSections);
+    toggleDynamicSections();
+
+    function demoFillForm() {
+        // Fill all text inputs that are not readonly
+        document.querySelectorAll('input[type="text"]:not([readonly])').forEach(el => {
+            const nameStr = el.name ? el.name.replace(/_/g, ' ') : 'Data';
+            el.value = 'Demo ' + nameStr;
+        });
+        
+        // Fill all select inputs
+        document.querySelectorAll('select:not([readonly])').forEach(el => {
+            // Find a valid option to select (prefer not empty)
+            for (let i = 0; i < el.options.length; i++) {
+                if (el.options[i].value !== '') {
+                    el.value = el.options[i].value;
+                    if (el.tomselect) {
+                        el.tomselect.setValue(el.options[i].value);
+                    } else {
+                        el.dispatchEvent(new Event('change'));
+                    }
+                    break;
+                }
+            }
+        });
+
+        // Fill all email inputs
+        document.querySelectorAll('input[type="email"]:not([readonly])').forEach(el => {
+            el.value = 'demo@lspro.local';
+        });
+        
+        // Fill all number inputs
+        document.querySelectorAll('input[type="number"]:not([readonly])').forEach(el => {
+            el.value = '10';
+        });
+        
+        // Fill all textareas
+        document.querySelectorAll('textarea:not([readonly])').forEach(el => {
+            el.value = 'Jl. Percobaan Demo No. 123, Gedung Utama';
+        });
+        
+        const toast = document.getElementById('autosave-toast');
+        if (toast) {
+            toast.querySelector('span').innerText = 'Data Demo Berhasil Diisi!';
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+    }
 </script>
 @endsection

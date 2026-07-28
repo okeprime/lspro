@@ -47,7 +47,7 @@
                                     $pdf = is_array($p->data_form) ? $p->data_form : (json_decode($p->data_form, true) ?? []);
                                 @endphp
                                 <option value="{{ $p->id }}">
-                                    {{ $p->user->name ?? 'Klien' }} - {{ $pdf['merek'] ?? 'Tanpa Merek' }} (#{{ str_pad($p->id, 5, '0', STR_PAD_LEFT) }})
+                                    {{ $p->user->nama_perusahaan ?? $p->user->nama_penghubung ?? $p->user->name ?? 'Klien' }} - {{ $pdf['merek_produk'] ?? ($pdf['merek'] ?? 'Tanpa Merek') }} (#{{ $p->nomor_registrasi ?? str_pad($p->id, 5, '0', STR_PAD_LEFT) }})
                                 </option>
                             @endforeach
                         </select>
@@ -110,8 +110,8 @@
                                     <tr>
                                         <td class="ps-4">
                                             <span class="badge bg-teal-subtle text-teal px-2 py-1 rounded fw-bold text-uppercase mb-1" style="background-color: #f0fdf4; color: #0f766e;">{{ $s->survailen_year }}</span>
-                                            <div class="fw-bold">{{ $s->user->name ?? 'Klien' }}</div>
-                                            <small class="text-muted">{{ $pdf['merek'] ?? 'Tanpa Merek' }}</small>
+                                            <div class="fw-bold text-dark">{{ $pdf['merek_produk'] ?? ($pdf['merek'] ?? 'Tanpa Merek') }}</div>
+                                            <small class="text-muted">{{ $s->pengajuan->user->nama_perusahaan ?? $s->pengajuan->user->nama_penghubung ?? $s->user->name ?? 'Klien' }}</small>
                                         </td>
                                         <td>
                                             <span class="text-danger fw-bold">{{ $s->deadline ? \Carbon\Carbon::parse($s->deadline)->format('d M Y') : 'N/A' }}</span>
@@ -165,7 +165,7 @@ LSPro BRMP SDLP</textarea>
                                         </td>
                                         <td>
                                             @if($s->file_dokumen)
-                                                <a href="{{ asset('storage/survailen_dokumen/' . $s->file_dokumen) }}" target="_blank" class="text-teal fw-semibold d-block mb-1 text-decoration-none">
+                                                <a href="{{ url('/unduh/survailen_dokumen/' . $s->file_dokumen) }}" target="_blank" class="text-teal fw-semibold d-block mb-1 text-decoration-none">
                                                     <i class="fa-solid fa-file-arrow-down"></i> Unduh Berkas
                                                 </a>
                                             @endif

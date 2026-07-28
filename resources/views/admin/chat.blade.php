@@ -255,7 +255,7 @@
             <div class="channel-item active" data-group="semua_admin" onclick="switchGroup('semua_admin', '# koordinasi-umum', 'Koordinasi Tim LSPro BBPM SDLP')">
                 <i class="fa-solid fa-hashtag"></i> koordinasi-umum
             </div>
-            <div class="channel-item" data-group="tata_usaha" onclick="switchGroup('tata_usaha', '# verifikasi-berkas', 'Tim Tata Usaha')">
+            <div class="channel-item" data-group="tata_usaha" onclick="switchGroup('tata_usaha', '# verifikasi-berkas', 'Tim Administrasi')">
                 <i class="fa-solid fa-hashtag"></i> verifikasi-berkas
             </div>
             <div class="channel-item" data-group="pelayanan" onclick="switchGroup('pelayanan', '# cs-pelayanan', 'Tim CS & Keluhan')">
@@ -272,7 +272,7 @@
                     $color = '#64748b'; $roleName = $roleStr;
                     if($roleStr === 'superadmin') { $color = '#9333ea'; $roleName = 'Superadmin'; }
                     else if($roleStr === 'admin') {
-                        if($subRoleStr === 'tatausaha' || $subRoleStr === 'tata_usaha') { $color = '#0284c7'; $roleName = 'Tata Usaha'; }
+                        if($subRoleStr === 'layanan' || $subRoleStr === 'tata_usaha') { $color = '#0284c7'; $roleName = 'Administrasi'; }
                         else if($subRoleStr === 'audit' || $subRoleStr === 'auditor') { $color = '#ea580c'; $roleName = 'Auditor'; }
                         else if($subRoleStr === 'layanan') { $color = '#16a34a'; $roleName = 'Layanan'; }
                         else { $color = '#64748b'; $roleName = 'Admin'; }
@@ -357,7 +357,7 @@
         let roleName = role;
         
         if(role === 'superadmin') { color = '#9333ea'; badgeClass = 'badge-superadmin'; roleName = 'Superadmin'; }
-        else if(role === 'admin_tu' || role === 'tata_usaha' || role === 'tatausaha') { color = '#0284c7'; badgeClass = 'badge-tata_usaha'; roleName = 'Tata Usaha'; }
+        else if(role === 'admin_tu' || role === 'tata_usaha' || role === 'layanan') { color = '#0284c7'; badgeClass = 'badge-tata_usaha'; roleName = 'Administrasi'; }
         else if(role === 'auditor' || role === 'audit') { color = '#ea580c'; badgeClass = 'badge-auditor'; roleName = 'Auditor'; }
         else if(role === 'layanan' || role === 'admin') { color = '#16a34a'; badgeClass = 'badge-layanan'; roleName = 'Layanan'; }
         

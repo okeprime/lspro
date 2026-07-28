@@ -53,7 +53,7 @@
     <div class="alert alert-info border-0 shadow-sm mb-4" style="border-radius: 12px; background-color: #f0fdfa; border-left: 4px solid #0f766e; color: #115e59;">
         <h6 class="fw-bold mb-1"><i class="fa-solid fa-circle-info me-2"></i> Prosedur Survailen Tahunan</h6>
         <p class="mb-0" style="font-size: 13.5px; opacity: 0.9;">
-            Untuk menjaga keabsahan Sertifikat SPPT SNI, LSPro melakukan pengawasan berkala minimal satu kali dalam setahun. Silakan periksa jadwal aktif Anda di bawah, lengkapi persyaratan, dan unggah dokumen bukti implementasi sistem manajemen mutu perusahaan Anda sebelum batas waktu yang ditentukan.
+            Untuk menjaga keabsahan Sertifikat Sertifikat Kesesuaian SNI, LSPro melakukan pengawasan berkala minimal satu kali dalam setahun. Silakan periksa jadwal aktif Anda di bawah, lengkapi persyaratan, dan unggah dokumen bukti implementasi sistem manajemen mutu perusahaan Anda sebelum batas waktu yang ditentukan.
         </p>
     </div>
 
@@ -125,3 +125,4 @@
     </div>
 </div>
 @endsection
+

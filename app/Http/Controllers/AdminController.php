@@ -13,7 +13,7 @@ use Illuminate\Validation\Rule;
 class AdminController extends Controller
 {
     /**
-     * Tampilkan Dashboard Admin/TU
+     * Tampilkan Dashboard Admin/Administrasi
      */
     public function index()
     {
@@ -30,8 +30,8 @@ class AdminController extends Controller
             'sertifikat_terbit'  => \App\Models\Pengajuan::whereIn('status', ['selesai', 'sppt_sni'])->count(),
         ];
 
-        // Stats khusus TU
-        if ($subRole === 'tatausaha' || $role === 'superadmin') {
+        // Stats khusus Administrasi
+        if ($subRole === 'layanan' || $role === 'superadmin') {
             $stats['baru_hari_ini'] = \App\Models\Pengajuan::whereDate('created_at', today())->where('status', '!=', 'draft')->count();
             $stats['belum_diverifikasi'] = \App\Models\Pengajuan::where('status', 'diajukan')->count();
         }
@@ -53,7 +53,7 @@ class AdminController extends Controller
         // Pengajuan untuk tampilan tabel
         $pengajuans = \App\Models\Pengajuan::with(['user', 'statusHistories.actor', 'invoice'])
             ->where('status', '!=', 'draft')
-            ->latest()
+            ->orderBy('updated_at', 'desc')
             ->limit(20)
             ->get();
 
@@ -65,25 +65,7 @@ class AdminController extends Controller
      */
     public function cekKelengkapan($id)
     {
-        $pengajuan = Pengajuan::with('user')->find($id);
-
-        // FALLBACK DUMMY DATA JIKA DATABASE KOSONG
-        if (!$pengajuan) {
-            $pengajuan = (object) [
-                'id' => $id,
-                'user' => (object) ['name' => 'PT Simulasi Agro Nusantara', 'email' => 'info@simulasi.com'],
-                'status' => 'diajukan',
-                'data_form' => json_encode([
-                    'nama_perusahaan' => 'PT Simulasi Agro Nusantara',
-                    'alamat_pabrik' => 'Kawasan Industri Dummy, Kav 45',
-                    'jenis_sertifikasi' => 'Sertifikasi Baru SNI',
-                    'nama_produk' => 'Pupuk Organik Padat',
-                    'merek_dagang' => 'AGRO DUMMY SUPER'
-                ]),
-                'ceklis_dokumen' => null,
-                'catatan' => ''
-            ];
-        }
+        $pengajuan = Pengajuan::with('user')->findOrFail($id);
 
         $formData = is_string($pengajuan->data_form) ? json_decode($pengajuan->data_form, true) : $pengajuan->data_form;
         $formData = $formData ?? [];
@@ -97,13 +79,24 @@ class AdminController extends Controller
     public function prosesCeklis(Request $request, $id)
     {
         $request->validate([
-            'kesimpulan' => 'required|in:evaluasi_724_audit,menunggu_ttd,perbaikan'
+            'kesimpulan' => 'required|in:lengkap,perbaikan,menunggu_lhp,tindakan_perbaikan'
         ]);
 
         $pengajuan = Pengajuan::findOrFail($id);
 
-        $pengajuan->catatan = $request->catatan;
-        $pengajuan->nama_tu = $request->nama_tu;
+        $isLayanan = str_contains(strtolower(auth()->user()->sub_role ?? ''), 'layanan') || strtolower(auth()->user()->role) === 'layanan';
+        $statusNormalized = LsproType5Workflow::normalize($pengajuan->status);
+        $isAuditPhase = in_array($statusNormalized, ['evaluasi_724_audit', 'proses_evaluasi', 'proses_audit', 'keputusan', 'selesai']);
+
+        if ($isAuditPhase) {
+            $formData = is_string($pengajuan->data_form) ? json_decode($pengajuan->data_form, true) : $pengajuan->data_form;
+            $formData['catatan_audit'] = $request->catatan;
+            $formData['nama_audit'] = $request->nama_tu;
+            $pengajuan->data_form = json_encode($formData);
+        } else {
+            $pengajuan->catatan = $request->catatan;
+            $pengajuan->nama_tu = $request->nama_tu;
+        }
 
         if ($request->has('ceklis')) {
             $pengajuan->ceklis_dokumen = json_encode($request->ceklis);
@@ -111,52 +104,60 @@ class AdminController extends Controller
 
         $pengajuan->save();
 
-        $pengajuan->save();
-
-        $isTU = str_contains(strtolower(auth()->user()->sub_role ?? ''), 'tatausaha') || strtolower(auth()->user()->role) === 'admin';
-        $isAudit = str_contains(strtolower(auth()->user()->sub_role ?? ''), 'audit') || strtolower(auth()->user()->role) === 'admin';
-
-        $statusNormalized = LsproType5Workflow::normalize($pengajuan->status);
-
         if ($request->kesimpulan === 'perbaikan') {
             if ($statusNormalized !== 'perbaikan') {
                 $pengajuan->transitionTo(
                     'perbaikan',
-                    $request->catatan ?: 'Dokumen ditandai perlu perbaikan oleh ' . ($isAudit ? 'Tim Audit.' : 'Tata Usaha.'),
+                    $request->catatan ?: 'Dokumen ditandai perlu perbaikan oleh Administrasi/Layanan.',
                     auth()->id()
                 );
                 NotificationHelper::sendToUser($pengajuan->user_id, 'Perlu Perbaikan', 'Pengajuan #' . $pengajuan->id . ' perlu perbaikan dokumen. Cek catatan evaluasi.', 'warning', $pengajuan->id);
             }
             return redirect()->route('admin.dashboard')->with('success', 'Dokumen ditandai perlu perbaikan.');
+        } elseif ($request->kesimpulan === 'tindakan_perbaikan') {
+            $formData = is_array($pengajuan->data_form) ? $pengajuan->data_form : json_decode($pengajuan->data_form, true) ?? [];
+            $formData['lks_iterasi'] = ($formData['lks_iterasi'] ?? 0) + 1;
+            $formData['lks_deadline'] = now()->addMonth()->toDateString();
+            $pengajuan->data_form = $formData;
+            $pengajuan->save();
+
+            $pengajuan->transitionTo(
+                'tindakan_perbaikan',
+                $request->catatan ?: 'Tim Audit menemukan ketidaksesuaian. Silakan unggah LKS sebelum ' . \Carbon\Carbon::parse($formData['lks_deadline'])->translatedFormat('d F Y') . '.',
+                auth()->id()
+            );
+            NotificationHelper::sendToUser($pengajuan->user_id, 'Tindakan Perbaikan Diperlukan', 'Tim Audit menemukan ketidaksesuaian. Harap unggah Tindakan Perbaikan sebelum batas waktu.', 'warning', $pengajuan->id);
+            return redirect()->route('admin.dashboard')->with('success', 'Hasil audit disimpan. Status dikembalikan ke Klien untuk Tindakan Perbaikan dengan deadline 1 bulan.');
+        } elseif ($request->kesimpulan === 'menunggu_lhp') {
+            $pengajuan->transitionTo(
+                'menunggu_lhp',
+                $request->catatan ?: 'Audit disetujui, menunggu Klien mengunggah Hasil Uji (LHP).',
+                auth()->id()
+            );
+            NotificationHelper::sendToRole('layanan', 'Audit Lapangan Selesai', 'Audit lapangan #' . $pengajuan->id . ' disetujui. Sampel dikirim ke Lab.', 'info', $pengajuan->id);
+            NotificationHelper::sendToUser($pengajuan->user_id, 'Audit Lapangan Selesai', 'Audit lapangan disetujui. Silakan unggah Laporan Hasil Uji (LHP) jika pengujian Lab sudah selesai.', 'success', $pengajuan->id);
+            return redirect()->route('admin.dashboard')->with('success', 'Hasil audit disetujui. Lanjut menunggu LHP.');
         }
 
         // Jika ACC
         if ($statusNormalized === 'evaluasi_724_tu') {
-            // TU Submit -> Lanjut ke Audit
-            $pengajuan->transitionTo(
-                'evaluasi_724_audit',
-                $request->catatan ?: 'Evaluasi kelengkapan oleh TU selesai. Menunggu kebenaran oleh Tim Audit.',
-                auth()->id()
-            );
-            return redirect()->route('admin.dashboard')->with('success', 'Evaluasi kelengkapan TU selesai. Berkas diteruskan ke Tim Audit.');
-        } elseif ($statusNormalized === 'evaluasi_724_audit') {
-            // Audit Submit -> Generate form dan Lanjut ke Menunggu TTD
-            $pengajuan->refresh();
-            $form723Generated = $this->generateForm723($pengajuan);
-            
+            // Administrasi Submit -> Lanjut ke Menunggu TTD Klien
             $pengajuan->transitionTo(
                 'menunggu_ttd',
-                $request->catatan ?: 'Evaluasi Form 7.2-4 selesai. Klien dapat mengunduh dan menandatangani berkas.',
+                $request->catatan ?: 'Evaluasi kelengkapan oleh Administrasi selesai. Menunggu klien mengunggah TTD Perjanjian Sertifikasi.',
                 auth()->id()
             );
+            return redirect()->route('admin.dashboard')->with('success', 'Evaluasi kelengkapan Administrasi selesai. Menunggu klien mengunggah TTD.');
+        } elseif ($statusNormalized === 'evaluasi_724_audit' || $statusNormalized === 'audit_kecukupan') {
+            // Audit Submit -> Ceklis disetujui, tetap di status audit_kecukupan agar Admin bisa menjadwalkan
+            $pengajuan->keterangan_admin = 'Evaluasi Form 7.2-4 selesai. Menunggu penjadwalan audit.';
+            $pengajuan->save();
 
-            NotificationHelper::sendToUser($pengajuan->user_id, 'Evaluasi Selesai', 'Evaluasi dokumen Form 7.2-4 selesai. Silakan unduh dan unggah dokumen TTD.', 'success', $pengajuan->id);
+            \App\Helpers\NotificationHelper::sendToUser($pengajuan->user_id, 'Evaluasi Selesai', 'Evaluasi dokumen Form 7.2-4 selesai. Menunggu penentuan jadwal audit oleh tim terkait.', 'success', $pengajuan->id);
 
-            return redirect()->route('admin.dashboard')->with(
+            return redirect()->route('admin.audit_berkas')->with(
                 'success',
-                $form723Generated 
-                    ? 'Audit kebenaran selesai. Form 7.2-1 & 7.2-4 siap diunduh klien.'
-                    : 'Audit kebenaran selesai. (Template Form 7.2-3 belum ada).'
+                'Audit kecukupan selesai. Pengajuan kini berada dalam antrean penjadwalan.'
             );
         }
 
@@ -171,25 +172,33 @@ class AdminController extends Controller
             if ($pengajuan->status !== 'perbaikan') {
                 $pengajuan->transitionTo(
                     'perbaikan',
-                    $request->catatan ?: 'Formulir ditandai perlu perbaikan oleh Tata Usaha.',
+                    $request->catatan ?: 'Formulir ditandai perlu perbaikan oleh Administrasi.',
                     auth()->id()
                 );
             }
-            NotificationHelper::sendToUser($pengajuan->user_id, 'Perlu Perbaikan', 'Pengajuan #' . $pengajuan->id . ' perlu perbaikan form. Cek catatan Tata Usaha.', 'warning', $pengajuan->id);
+            NotificationHelper::sendToUser($pengajuan->user_id, 'Perlu Perbaikan', 'Pengajuan #' . $pengajuan->id . ' perlu perbaikan form. Cek catatan Administrasi.', 'warning', $pengajuan->id);
             return redirect()->route('admin.dashboard')->with('success', 'Formulir ditandai perlu perbaikan.');
         }
 
-        // ACC Pengecekan Awal
-        if ($pengajuan->status !== 'menunggu_lampiran') {
-            $pengajuan->transitionTo(
-                'menunggu_lampiran',
-                'Pengecekan awal selesai. Menunggu klien mengunggah dokumen kelengkapan.',
-                auth()->id()
-            );
-        }
-        NotificationHelper::sendToUser($pengajuan->user_id, 'Pengecekan Awal Selesai', 'Pengecekan awal oleh TU selesai. Silakan unggah dokumen kelengkapan (SIUP, TDI, dll).', 'success', $pengajuan->id);
+        // ACC Pengecekan Awal -> Terbitkan Billing 1
+        $pengajuan->nama_tu = auth()->user()->name ?? 'Administrasi';
+        $pengajuan->save();
+        
+        $pengajuan->transitionTo(
+            'billing_1',
+            'Pengecekan awal selesai. Menunggu Keuangan menerbitkan RAB & Billing 1.',
+            auth()->id()
+        );
 
-        return redirect()->route('admin.dashboard')->with('success', 'Pengecekan awal selesai. Klien diminta mengunggah dokumen kelengkapan.');
+        NotificationHelper::sendToUser(
+            $pengajuan->user_id, 
+            'Pengecekan Awal Selesai', 
+            'Pengecekan awal selesai. Menunggu penerbitan Billing 1 oleh Keuangan LSPro.', 
+            'info', 
+            $pengajuan->id
+        );
+
+        return redirect()->route('admin.dashboard')->with('success', 'Pengecekan awal selesai. Silakan arahkan Keuangan untuk menerbitkan RAB & Billing 1.');
     }
 
     /**
@@ -277,7 +286,7 @@ class AdminController extends Controller
 
         $templateProcessor->setValue(
             'nama_tu',
-            $pengajuan->nama_tu ?? 'Petugas Tata Usaha'
+            $pengajuan->nama_tu ?? 'Petugas Administrasi'
         );
 
         $cleanName = preg_replace('/[^A-Za-z0-9\-]/', '_', $namaPemohon);
@@ -310,32 +319,7 @@ class AdminController extends Controller
         $request->validate([
             'status' => ['required', Rule::in($allowedStatuses)],
             'catatan_status' => ['nullable', 'string', 'max:1000'],
-            'nominal_invoice' => [
-                Rule::requiredIf($request->status === 'billing'),
-                'nullable',
-                'numeric',
-                'min:0',
-            ],
         ]);
-
-        if ($request->status === 'billing') {
-            $sequence = $pengajuan->invoices()->count() + 1;
-
-            $pengajuan->invoices()->create([
-                'invoice_number' => sprintf(
-                    'INV/LSPRO/%s/%05d/%02d',
-                    now()->format('Y'),
-                    $pengajuan->id,
-                    $sequence
-                ),
-                'invoice_date' => now()->toDateString(),
-                'due_date' => now()->addDays(14)->toDateString(),
-                'amount_total' => $request->nominal_invoice,
-                'amount_paid' => 0,
-                'status' => 'unpaid',
-                'notes' => 'Invoice tahap Billing Alur Sertifikasi LSPro.',
-            ]);
-        }
 
         if ($request->status === 'proses_evaluasi') {
             $invoice = $pengajuan->latestInvoice();
@@ -356,12 +340,12 @@ class AdminController extends Controller
         );
 
         // Triggers
-        if ($request->status === 'billing') {
-            NotificationHelper::sendToUser($pengajuan->user_id, 'Invoice Diterbitkan', 'Invoice baru telah diterbitkan untuk pengajuan #' . $pengajuan->id, 'info', $pengajuan->id);
+        if (in_array($request->status, ['billing_1', 'billing_2', 'billing_3', 'billing_4'])) {
+            NotificationHelper::sendToUser($pengajuan->user_id, 'Invoice Diterbitkan', 'Invoice baru (' . strtoupper(str_replace('_', ' ', $request->status)) . ') telah diterbitkan untuk pengajuan #' . $pengajuan->id, 'info', $pengajuan->id);
         } elseif ($request->status === 'proses_evaluasi') {
             NotificationHelper::sendToUser($pengajuan->user_id, 'Pembayaran Diverifikasi', 'Pembayaran pengajuan #' . $pengajuan->id . ' telah diverifikasi. Lanjut ke proses evaluasi.', 'success', $pengajuan->id);
         } elseif ($request->status === 'proses_audit') {
-            NotificationHelper::sendToRole('audit', 'Dokumen Baru', 'Dokumen pengajuan #' . $pengajuan->id . ' diteruskan oleh Tata Usaha untuk diaudit.', 'info', $pengajuan->id);
+            NotificationHelper::sendToRole('audit', 'Dokumen Baru', 'Dokumen pengajuan #' . $pengajuan->id . ' diteruskan oleh Administrasi untuk diaudit.', 'info', $pengajuan->id);
         }
 
         return back()->with(
@@ -369,6 +353,8 @@ class AdminController extends Controller
             'Tahap sertifikasi berhasil diperbarui sesuai alur Tipe 5.'
         );
     }
+
+
 
     private function generateForm723(Pengajuan $pengajuan): bool
     {
@@ -397,9 +383,27 @@ class AdminController extends Controller
         }
 
         $templateProcessor->setValue('nomor_permohonan', str_pad($pengajuan->id, 5, '0', STR_PAD_LEFT));
-        $templateProcessor->setValue('tanggal_perjanjian', now()->translatedFormat('d F Y'));
+        $templateProcessor->setValue('hari_perjanjian', now()->translatedFormat('l'));
+        $templateProcessor->setValue('tanggal_perjanjian', now()->translatedFormat('d'));
+        $templateProcessor->setValue('bulan_perjanjian', now()->translatedFormat('F'));
+        $templateProcessor->setValue('tahun_perjanjian', now()->translatedFormat('Y'));
+        
+        $templateProcessor->setValue('nama_tu', 'Anik Dwi Hastuti S.P.,M.M');
+        $templateProcessor->setValue('nama_ketua_lspro', 'Anik Dwi Hastuti S.P.,M.M');
+        $templateProcessor->setValue('nama_ketua', 'Anik Dwi Hastuti S.P.,M.M');
+        $templateProcessor->setValue('jabatan_lspro', 'Ketua LSPro BRMP SDLP');
+        $templateProcessor->setValue('nama_perusahaan', $formData['nama_perusahaan'] ?? $pengajuan->user->nama_perusahaan ?? '-');
+        $templateProcessor->setValue('alamat_perusahaan', $formData['alamat_perusahaan'] ?? $formData['alamat_pabrik'] ?? $formData['alamat_kantor'] ?? '-');
         $templateProcessor->setValue('nama_pemohon', $formData['nama_pemohon'] ?? $pengajuan->user->name ?? '-');
-        $templateProcessor->setValue('nama_perusahaan', $formData['nama_perusahaan'] ?? '-');
+        $templateProcessor->setValue('jabatan_pemohon', $formData['jabatan_pemohon'] ?? $formData['jabatan_penghubung'] ?? 'Pimpinan Perusahaan');
+        
+        $templateProcessor->setValue('nama_produk', $formData['nama_produk'] ?? $formData['jenis_pupuk'] ?? '-');
+        $templateProcessor->setValue('no_sni', $formData['no_sni'] ?? $formData['nomor_sni'] ?? '-');
+        $templateProcessor->setValue('judul_sni', $formData['judul_sni'] ?? '-');
+
+        // TTD otomatis Pihak 1 (LSPro) & Pihak 2 (Pemohon)
+        $templateProcessor->setValue('ttd_pihak_1', '[Telah Ditandatangani Secara Elektronik]');
+        $templateProcessor->setValue('ttd_pihak_2', '[Telah Ditandatangani Secara Elektronik]');
 
         $folder = storage_path('app/public/perjanjian/' . $pengajuan->id);
         if (!file_exists($folder)) {
@@ -421,7 +425,7 @@ class AdminController extends Controller
     {
         $schedules = \App\Models\SurveilanSchedule::with(['pengajuan.user', 'user'])->latest()->get();
         $users = \App\Models\User::where('role', 'client')->get();
-        $pengajuans = Pengajuan::with('user')->whereNotIn('status', ['draft'])->latest()->get();
+        $pengajuans = Pengajuan::with('user')->where('status', 'selesai')->latest()->get();
         
         return view('admin.survailen', compact('schedules', 'users', 'pengajuans'));
     }
@@ -493,34 +497,165 @@ class AdminController extends Controller
     }
 
     // ==========================================
-    // MODUL BARU: PANEL TATA USAHA
+    // MODUL BARU: PANEL Administrasi
     // ==========================================
     public function panelTU()
     {
-        // Tandai semua pengajuan yang berstatus diajukan sebagai sudah dibaca oleh TU
-        Pengajuan::where('status', 'diajukan')->update(['is_read_tu' => true]);
+        // Tandai pengajuan baru sebagai dibaca tanpa mengubah waktu updated_at
+        Pengajuan::where('status', 'diajukan')
+            ->where('is_read_tu', false)
+            ->toBase()
+            ->update(['is_read_tu' => true]);
 
-        // Menampilkan antrean pengajuan yang perlu diproses TU
+        // Menampilkan antrean pengajuan yang perlu diproses Administrasi (Pengecekan Awal)
+        // Hanya perbaikan awal (nama_tu IS NULL) yang masuk ke sini
         $pengajuans = Pengajuan::with('user')
-            ->whereIn('status', ['diajukan', 'perbaikan', 'menunggu_lampiran', 'evaluasi_724_tu'])
-            ->latest()
+            ->where('status', 'diajukan')
+            ->orWhere(function($query) {
+                $query->where('status', 'perbaikan')
+                      ->whereNull('nama_tu');
+            })
+            ->orderBy('updated_at', 'desc')
             ->get();
-        return view('admin.panel_tu', compact('pengajuans'));
+        
+        $title = "Pengajuan Masuk (Pengecekan Awal)";
+        $subtitle = "Verifikasi identitas dan form awal (Form 7.2-1).";
+        
+        return view('admin.panel_tu', compact('pengajuans', 'title', 'subtitle'));
     }
+
 
     // ==========================================
     // MODUL BARU: PANEL KEUANGAN
     // ==========================================
     public function panelKeuangan()
     {
-        // Menampilkan antrean invoice yang pending
+        // Menampilkan antrean invoice yang pending (Tagihan & Pembayaran)
         $invoices = \App\Models\Invoice::with(['pengajuan.user'])
             ->whereIn('status', ['pending_verification', 'unpaid', 'paid'])
             ->orderByRaw("FIELD(status, 'pending_verification', 'unpaid', 'paid')")
             ->latest()
             ->get();
             
-        return view('admin.panel_keuangan', compact('invoices'));
+        // Menampilkan antrean pengajuan untuk Perjanjian Sertifikasi
+        $pengajuansPerjanjian = \App\Models\Pengajuan::with('user')
+            ->whereIn('status', ['billing_1', 'billing_2', 'billing_3', 'billing_4'])
+            ->latest()
+            ->get();
+            
+        $allInvoices = \App\Models\Invoice::with(['pengajuan.user'])
+            ->latest()
+            ->get();
+            
+        return view('admin.panel_keuangan', compact('invoices', 'pengajuansPerjanjian', 'allInvoices'));
+    }
+
+    public function uploadBilling(Request $request, $id)
+    {
+        $request->validate([
+            'file_invoice' => 'required|mimes:pdf,jpg,png,jpeg|max:5120',
+        ]);
+
+        $invoice = \App\Models\Invoice::findOrFail($id);
+
+        if ($request->hasFile('file_invoice')) {
+            $noPermohonan = str_pad($invoice->pengajuan_id, 5, '0', STR_PAD_LEFT);
+            $filename = 'tagihan_billing_' . $invoice->id . '_permohonan_' . $noPermohonan . '.' . $request->file('file_invoice')->getClientOriginalExtension();
+            $path = $request->file('file_invoice')->storeAs('invoices', $filename, 'public');
+            $invoice->file_invoice = $path;
+            $invoice->status = 'unpaid';
+            $invoice->notes = 'Billing telah diterbitkan oleh Keuangan. Menunggu pembayaran klien.';
+            $invoice->save();
+
+            \App\Helpers\NotificationHelper::sendToUser($invoice->pengajuan->user_id, 'Billing Baru Diterbitkan', 'Tagihan / Billing baru (#' . $invoice->invoice_number . ') telah diterbitkan. Silakan cek menu Billing untuk melunasi pembayaran.', 'info', $invoice->pengajuan_id);
+
+            return redirect()->back()->with('success', 'File Billing berhasil diunggah dan dikirim ke klien.');
+        }
+
+        return redirect()->back()->with('error', 'Gagal mengunggah File Billing.');
+    }
+
+    public function updateInvoice(Request $request, $id)
+    {
+        $invoice = \App\Models\Invoice::findOrFail($id);
+
+        $request->validate([
+            'invoice_number' => 'required|string|max:255',
+            'amount_total' => 'required|numeric|min:0',
+            'due_date' => 'required|date',
+            'file_invoice' => 'nullable|mimes:pdf,jpg,png,jpeg|max:5120',
+        ]);
+
+        $invoice->invoice_number = $request->invoice_number;
+        $invoice->amount_total = $request->amount_total;
+        $invoice->due_date = $request->due_date;
+
+        if ($request->hasFile('file_invoice')) {
+            $noPermohonan = str_pad($invoice->pengajuan_id, 5, '0', STR_PAD_LEFT);
+            $filename = 'tagihan_billing_' . $invoice->id . '_permohonan_' . $noPermohonan . '.' . $request->file('file_invoice')->getClientOriginalExtension();
+            $path = $request->file('file_invoice')->storeAs('invoices', $filename, 'public');
+            $invoice->file_invoice = $path;
+        }
+
+        $invoice->save();
+
+        return redirect()->back()->with('success', 'Data Tagihan berhasil diperbarui.');
+    }
+
+    public function destroyInvoice($id)
+    {
+        $invoice = \App\Models\Invoice::findOrFail($id);
+        
+        // Hapus file fisik jika ada
+        if ($invoice->file_invoice && \Illuminate\Support\Facades\Storage::disk('public')->exists($invoice->file_invoice)) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($invoice->file_invoice);
+        }
+        
+        $invoice->delete();
+
+        return redirect()->back()->with('success', 'Tagihan berhasil dihapus dari sistem.');
+    }
+
+    public function uploadKwitansi(Request $request, $id)
+    {
+        $request->validate([
+            'file_kwitansi' => 'required|mimes:pdf,jpg,png,jpeg|max:5120',
+        ]);
+
+        $invoice = \App\Models\Invoice::findOrFail($id);
+
+        if ($request->hasFile('file_kwitansi')) {
+            $noPermohonan = str_pad($invoice->pengajuan_id, 5, '0', STR_PAD_LEFT);
+            $filename = 'kwitansi_pembayaran_billing_' . $invoice->id . '_permohonan_' . $noPermohonan . '.' . $request->file('file_kwitansi')->getClientOriginalExtension();
+            $path = $request->file('file_kwitansi')->storeAs('kwitansi', $filename, 'public');
+            $invoice->file_kwitansi = $path;
+            
+            // ACC pembayaran jika belum
+            if ($invoice->status !== 'paid') {
+                $invoice->status = 'paid';
+                $invoice->notes = 'Pembayaran diverifikasi. Kwitansi telah diterbitkan.';
+                
+                // Lanjutkan workflow
+                $pengajuan = $invoice->pengajuan;
+                if ($pengajuan->status === 'billing_1') {
+                    $pengajuan->transitionTo('perjanjian_lampiran', 'Pembayaran Billing 1 diverifikasi. Klien dapat mengisi Perjanjian & Lampiran.', auth()->id());
+                } elseif ($pengajuan->status === 'billing_2') {
+                    $pengajuan->transitionTo('audit_kecukupan', 'Pembayaran Billing 2 diverifikasi. Lanjut ke Audit Kecukupan Dokumen.', auth()->id());
+                } elseif ($pengajuan->status === 'billing_3') {
+                    $pengajuan->transitionTo('proses_audit', 'Pembayaran Billing 3 diverifikasi. Lanjut ke Pelaksanaan Audit Lapangan.', auth()->id());
+                } elseif ($pengajuan->status === 'billing_4') {
+                    $pengajuan->transitionTo('evaluasi', 'Pembayaran Billing 4 diverifikasi. Lanjut ke Sidang Komtek / Evaluasi Akhir.', auth()->id());
+                }
+            }
+            
+            $invoice->save();
+
+            \App\Helpers\NotificationHelper::sendToUser($invoice->pengajuan->user_id, 'Kwitansi Diterbitkan', 'Kwitansi untuk pembayaran (#' . $invoice->invoice_number . ') telah diterbitkan oleh Keuangan.', 'success', $invoice->pengajuan_id);
+
+            return redirect()->back()->with('success', 'Kwitansi berhasil diunggah dan Pembayaran di-ACC.');
+        }
+
+        return redirect()->back()->with('error', 'Gagal mengunggah Kwitansi.');
     }
 
     public function verifyPayment(Request $request, $id)
@@ -528,17 +663,35 @@ class AdminController extends Controller
         $invoice = \App\Models\Invoice::findOrFail($id);
         
         if ($request->action === 'terima') {
+            $request->validate([
+                'file_kwitansi' => 'required|mimes:pdf,jpg,png,jpeg|max:5120',
+            ]);
+
+            if ($request->hasFile('file_kwitansi')) {
+                $noPermohonan = str_pad($invoice->pengajuan_id, 5, '0', STR_PAD_LEFT);
+                $filename = 'kwitansi_pembayaran_billing_' . $invoice->id . '_permohonan_' . $noPermohonan . '.' . $request->file('file_kwitansi')->getClientOriginalExtension();
+                $path = $request->file('file_kwitansi')->storeAs('kwitansi', $filename, 'public');
+                $invoice->file_kwitansi = $path;
+            }
+
             $invoice->status = 'paid';
-            $invoice->notes = 'Pembayaran telah diverifikasi oleh Keuangan.';
+            $invoice->notes = 'Pembayaran telah diverifikasi oleh Keuangan. Kwitansi telah diterbitkan.';
             
             // Lanjutkan workflow pengajuan
             $pengajuan = $invoice->pengajuan;
-            if ($pengajuan && $pengajuan->status === 'billing') {
-                $pengajuan->status = 'proses_evaluasi'; // Atau status selanjutnya sesuai SOP
-                $pengajuan->save();
-                
-                \App\Helpers\NotificationHelper::sendToUser($pengajuan->user_id, 'Pembayaran Diterima', 'Pembayaran untuk invoice #' . $invoice->invoice_number . ' telah diverifikasi. Pengajuan dilanjutkan.', 'success', $pengajuan->id);
-            }
+                if ($pengajuan->status === 'billing_1') {
+                    $pengajuan->transitionTo('perjanjian_lampiran', 'Pembayaran Billing 1 diverifikasi. Klien dapat mengisi Perjanjian & Lampiran.', auth()->id());
+                    \App\Helpers\NotificationHelper::sendToUser($pengajuan->user_id, 'Pembayaran Diterima', 'Pembayaran untuk invoice #' . $invoice->invoice_number . ' telah diverifikasi. Silakan isi dan unggah dokumen Perjanjian Sertifikasi & Lampiran.', 'success', $pengajuan->id);
+                } elseif ($pengajuan->status === 'billing_2') {
+                    $pengajuan->transitionTo('audit_kecukupan', 'Pembayaran Billing 2 diverifikasi. Lanjut ke Audit Kecukupan Dokumen.', auth()->id());
+                    \App\Helpers\NotificationHelper::sendToUser($pengajuan->user_id, 'Pembayaran Diterima', 'Pembayaran untuk invoice #' . $invoice->invoice_number . ' telah diverifikasi. Tim bersiap untuk Audit Kecukupan.', 'success', $pengajuan->id);
+                } elseif ($pengajuan->status === 'billing_3') {
+                    $pengajuan->transitionTo('proses_audit', 'Pembayaran Billing 3 diverifikasi. Lanjut ke Pelaksanaan Audit Lapangan.', auth()->id());
+                    \App\Helpers\NotificationHelper::sendToUser($pengajuan->user_id, 'Pembayaran Diterima', 'Pembayaran untuk invoice #' . $invoice->invoice_number . ' telah diverifikasi. Tim bersiap untuk Audit Lapangan.', 'success', $pengajuan->id);
+                } elseif ($pengajuan->status === 'billing_4') {
+                    $pengajuan->transitionTo('evaluasi', 'Pembayaran Billing 4 diverifikasi. Lanjut ke Sidang Komtek / Evaluasi Akhir.', auth()->id());
+                    \App\Helpers\NotificationHelper::sendToUser($pengajuan->user_id, 'Pembayaran Diterima', 'Pembayaran untuk biaya evaluasi (invoice #' . $invoice->invoice_number . ') telah diverifikasi. Menunggu proses evaluasi.', 'success', $pengajuan->id);
+                }
             
             $msg = 'Pembayaran berhasil diverifikasi (Lunas).';
         } else {
@@ -582,25 +735,18 @@ class AdminController extends Controller
         return view('admin.customer_service', compact('clients'));
     }
 
-    // ==========================================
-    // MODUL BARU: AUDIT 7.2-4
-    // ==========================================
-    public function panelAudit724()
-    {
-        $pengajuans = Pengajuan::with('user')
-            ->where('status', 'evaluasi_724_audit')
-            ->latest()
-            ->get();
-            
-        return view('admin.audit_724', compact('pengajuans'));
-    }
 
     // ==========================================
     // MODUL BARU: DATA SAMPEL (DUMMY)
     // ==========================================
     public function dataSampel()
     {
-        return view('admin.data_sampel');
+        $pengajuans = Pengajuan::with('user')
+            ->whereIn('status', ['proses_evaluasi', 'proses_audit', 'keputusan'])
+            ->latest()
+            ->get();
+            
+        return view('admin.data_sampel', compact('pengajuans'));
     }
 
     // ==========================================
@@ -614,39 +760,31 @@ class AdminController extends Controller
             ->latest()
             ->get();
             
-        // FALLBACK DUMMY DATA
-        if ($pengajuans->isEmpty()) {
-            $pengajuans = collect([
-                (object)[
-                    'id' => 881,
-                    'user' => (object)['name' => 'PT Semesta Agro Tbk', 'email' => 'contact@semesta.co.id'],
-                    'data_form' => json_encode(['jenis_sertifikasi' => 'Sertifikasi Baru SNI Pupuk Urea']),
-                    'updated_at' => now()->subDays(2),
-                ],
-                (object)[
-                    'id' => 882,
-                    'user' => (object)['name' => 'CV Bumi Indah Sejahtera', 'email' => 'admin@bumiindah.com'],
-                    'data_form' => json_encode(['jenis_sertifikasi' => 'Resertifikasi SNI NPK']),
-                    'updated_at' => now()->subDays(1),
-                ]
-            ]);
-        }
-
         return view('admin.penyerahan_sertifikat', compact('pengajuans'));
     }
 
     public function kirimSertifikat(Request $request, $id)
     {
-        $request->validate(['pesan' => 'required|string']);
+        $request->validate([
+            'pesan' => 'required|string',
+            'file_sertifikat' => 'nullable|file|mimes:pdf,jpg,png,jpeg|max:5120'
+        ]);
         
         $pengajuan = Pengajuan::findOrFail($id);
         
+        if ($request->hasFile('file_sertifikat')) {
+            $noPermohonan = str_pad($pengajuan->id, 5, '0', STR_PAD_LEFT);
+            $filename = 'sertifikat_lspro_permohonan_' . $noPermohonan . '.' . $request->file('file_sertifikat')->getClientOriginalExtension();
+            $path = $request->file('file_sertifikat')->storeAs('sertifikat', $filename, 'public');
+            $pengajuan->file_sertifikat = $path; // Pastikan kolom ini ada atau simpan di data_form
+        }
+
         NotificationHelper::sendToUser($pengajuan->user_id, 'Sertifikat Diterbitkan', $request->pesan, 'sertifikasi_selesai', $pengajuan->id);
 
         // Opsional: Integrasi SMTP Email
         // \Mail::raw($request->pesan, function($message) use ($pengajuan) {
         //     $message->to($pengajuan->user->email)
-        //             ->subject('Sertifikat SPPT SNI Diterbitkan - LSPro');
+        //             ->subject('Sertifikat Sertifikat Kesesuaian SNI Diterbitkan - LSPro');
         // });
 
         $pengajuan->update(['status' => 'selesai']);
@@ -655,12 +793,31 @@ class AdminController extends Controller
     }
 
     // ==========================================
+    // MODUL BARU: PENJADWALAN AUDIT (Administrasi)
+    // ==========================================
+    public function penjadwalanAudit()
+    {
+        $pengajuans = Pengajuan::with('user')
+            ->where(function($q) {
+                $q->where('status', 'audit_kecukupan')->whereNotNull('ceklis_dokumen')
+                  ->orWhere('status', 'menunggu_persetujuan_jadwal');
+            })
+            ->latest()
+            ->get();
+            
+        return view('admin.tu_penjadwalan', compact('pengajuans'));
+    }
+
+    // ==========================================
     // MODUL BARU: AUDIT KESESUAIAN BERKAS
     // ==========================================
     public function auditBerkas()
     {
         $pengajuans = Pengajuan::with('user')
-            ->where('status', 'proses_audit')
+            ->where(function($q) {
+                $q->where('status', 'audit_kecukupan')->whereNull('ceklis_dokumen')
+                  ->orWhere('status', 'proses_audit');
+            })
             ->latest()
             ->get();
             
@@ -670,7 +827,7 @@ class AdminController extends Controller
     public function prosesAuditBerkas(Request $request, $id)
     {
         $request->validate([
-            'status' => 'required|in:keputusan,perbaikan',
+            'status' => 'required|string',
             'catatan_status' => 'required|string',
         ]);
         
@@ -682,13 +839,24 @@ class AdminController extends Controller
             auth()->id()
         );
 
-        if ($request->status === 'perbaikan') {
-            NotificationHelper::sendToRole('tatausaha', 'Audit Dikembalikan', 'Tim Audit mengembalikan dokumen pengajuan #' . $pengajuan->id . ' untuk perbaikan.', 'warning', $pengajuan->id);
+        if ($request->status === 'perbaikan' || $request->status === 'tindakan_perbaikan') {
+            NotificationHelper::sendToRole('layanan', 'Audit Dikembalikan', 'Tim Audit mengembalikan dokumen pengajuan #' . $pengajuan->id . ' untuk perbaikan.', 'warning', $pengajuan->id);
             NotificationHelper::sendToUser($pengajuan->user_id, 'Audit Selesai (Perlu Perbaikan)', 'Pemeriksaan audit telah selesai dengan catatan perbaikan.', 'warning', $pengajuan->id);
         } elseif ($request->status === 'keputusan') {
-            NotificationHelper::sendToRole('tatausaha', 'Sertifikat Siap Diterbitkan', 'Tim Audit menyetujui dokumen pengajuan #' . $pengajuan->id . '. Menunggu keputusan akhir.', 'success', $pengajuan->id);
+            NotificationHelper::sendToRole('layanan', 'Sertifikat Siap Diterbitkan', 'Tim Audit menyetujui dokumen pengajuan #' . $pengajuan->id . '. Menunggu keputusan akhir.', 'success', $pengajuan->id);
             NotificationHelper::sendToRole('layanan', 'Sertifikat Siap Dikirim', 'Pengajuan #' . $pengajuan->id . ' telah mencapai tahap keputusan.', 'info', $pengajuan->id);
             NotificationHelper::sendToUser($pengajuan->user_id, 'Audit Selesai', 'Pemeriksaan audit pengajuan #' . $pengajuan->id . ' telah selesai dan disetujui.', 'success', $pengajuan->id);
+        } elseif ($request->status === 'proses_audit') {
+            NotificationHelper::sendToRole('layanan', 'Lanjut Audit Lapangan', 'Evaluasi dokumen #' . $pengajuan->id . ' disetujui. Lanjut ke proses Audit Lapangan.', 'info', $pengajuan->id);
+            NotificationHelper::sendToUser($pengajuan->user_id, 'Evaluasi Selesai', 'Evaluasi dokumen pengajuan #' . $pengajuan->id . ' disetujui. Menunggu proses Audit Lapangan.', 'success', $pengajuan->id);
+        } elseif ($request->status === 'proses_ppc') {
+            NotificationHelper::sendToRole('layanan', 'Audit Lapangan Selesai', 'Audit lapangan #' . $pengajuan->id . ' disetujui. Menunggu Petugas PPC mengambil sampel.', 'info', $pengajuan->id);
+            NotificationHelper::sendToUser($pengajuan->user_id, 'Audit Lapangan Selesai', 'Audit lapangan disetujui. Menunggu Petugas (PPC) untuk mengambil sampel uji.', 'success', $pengajuan->id);
+        } elseif ($request->status === 'billing_3') {
+            NotificationHelper::sendToRole('layanan', 'Pengambilan Sampel Selesai', 'PPC telah selesai untuk #' . $pengajuan->id . '. Silakan terbitkan Tagihan Uji Lab (Billing 3).', 'info', $pengajuan->id);
+            NotificationHelper::sendToUser($pengajuan->user_id, 'Pengambilan Sampel Selesai', 'Sampel uji telah diambil. Menunggu tagihan Uji Lab.', 'success', $pengajuan->id);
+        } elseif ($request->status === 'menunggu_lhp') {
+            NotificationHelper::sendToRole('layanan', 'Menunggu Hasil Lab', 'Audit lapangan #' . $pengajuan->id . ' disetujui. Menunggu LHP.', 'info', $pengajuan->id);
         }
 
         return redirect()->route('admin.audit_berkas')->with('success', 'Hasil audit kesesuaian berkas berhasil disimpan.');
@@ -709,7 +877,7 @@ class AdminController extends Controller
             auth()->id()
         );
 
-        $pengajuan->catatan_admin = $request->catatan;
+        $pengajuan->keterangan_admin = $request->catatan;
         $pengajuan->save();
 
         if ($request->kesimpulan === 'perbaikan') {
@@ -720,4 +888,545 @@ class AdminController extends Controller
 
         return redirect()->route('admin.dashboard')->with('success', 'Pengecekan awal berhasil disimpan.');
     }
+
+    // ==========================================
+    // MODUL BARU: JADWAL AUDIT & BILLING LAB
+    // ==========================================
+    public function setJadwalAudit(Request $request, $id)
+    {
+        $request->validate([
+            'jadwal_audit' => 'required|date',
+            'dokumen_jadwal' => 'nullable|file|mimes:pdf|max:10240',
+        ]);
+
+        $pengajuan = Pengajuan::findOrFail($id);
+        $pengajuan->jadwal_audit = $request->jadwal_audit;
+        
+        if ($request->hasFile('dokumen_jadwal')) {
+            $noPermohonan = str_pad($pengajuan->id, 5, '0', STR_PAD_LEFT);
+            $filename = 'jadwal_audit_permohonan_' . $noPermohonan . '.' . $request->file('dokumen_jadwal')->getClientOriginalExtension();
+            $path = $request->file('dokumen_jadwal')->storeAs('jadwal', $filename, 'public');
+            $formData = is_array($pengajuan->data_form) ? $pengajuan->data_form : (json_decode($pengajuan->data_form, true) ?? []);
+            $formData['dokumen_jadwal'] = $path;
+            $pengajuan->data_form = $formData;
+        }
+
+        $pengajuan->is_jadwal_disetujui = null;
+        $pengajuan->save();
+
+        if ($pengajuan->status !== 'menunggu_persetujuan_jadwal') {
+            $pengajuan->transitionTo(
+                'menunggu_persetujuan_jadwal',
+                'Jadwal Audit dan Pengambilan Contoh telah ditentukan. Menunggu persetujuan Klien.',
+                auth()->id()
+            );
+        } else {
+            $pengajuan->statusHistories()->create([
+                'from_status' => $pengajuan->status,
+                'to_status' => $pengajuan->status,
+                'notes' => 'Jadwal Audit diperbarui. Menunggu persetujuan ulang dari Klien.',
+                'user_id' => auth()->id()
+            ]);
+        }
+
+        NotificationHelper::sendToUser($pengajuan->user_id, 'Persetujuan Jadwal Audit', 'Jadwal audit telah ditentukan. Silakan konfirmasi persetujuan di dashboard Anda.', 'info', $pengajuan->id);
+
+        return redirect()->back()->with('success', 'Jadwal audit berhasil disimpan dan dikirim ke Klien.');
+    }
+
+    public function terbitkanBillingLab(Request $request, $id)
+    {
+        $request->validate([
+            'nominal_lab' => 'required|numeric|min:1',
+        ]);
+
+        $pengajuan = Pengajuan::findOrFail($id);
+        
+        $sequence = $pengajuan->invoices()->count() + 1;
+        $noPermohonan = str_pad($pengajuan->id, 5, '0', STR_PAD_LEFT);
+        $filename = 'tagihan_billing_lab_' . $sequence . '_permohonan_' . $noPermohonan . '.' . $request->file('file_invoice')->getClientOriginalExtension();
+        $path = $request->file('file_invoice')->storeAs('invoices', $filename, 'public');
+
+        $pengajuan->invoices()->create([
+            'invoice_number' => sprintf(
+                'INV/LAB/%s/%05d/%02d',
+                now()->format('Y'),
+                $pengajuan->id,
+                $sequence
+            ),
+            'invoice_date' => now()->toDateString(),
+            'due_date' => now()->addDays(7)->toDateString(),
+            'amount_total' => $request->nominal_lab,
+            'amount_paid' => 0,
+            'status' => 'unpaid',
+            'file_invoice' => $path,
+            'notes' => 'Invoice Uji Laboratorium.',
+            'jenis_tagihan' => 'uji_lab',
+        ]);
+
+        $pengajuan->transitionTo(
+            'billing_3',
+            'Billing Uji Lab telah diterbitkan. Menunggu pembayaran Klien.',
+            auth()->id()
+        );
+
+        NotificationHelper::sendToUser($pengajuan->user_id, 'Billing Uji Lab Diterbitkan', 'Tagihan untuk uji lab telah terbit. Silakan lakukan pembayaran di menu Billing.', 'info', $pengajuan->id);
+
+        return redirect()->back()->with('success', 'Billing Uji Lab berhasil diterbitkan.');
+    }
+
+    // ==========================================
+    // PLACEHOLDER ROUTES (LAYANAN, AUDIT, SUPERADMIN)
+    // ==========================================
+    
+    public function layananEvaluasiDokumen()
+    {
+        $pengajuans = Pengajuan::with('user')
+            ->where('status', 'audit_kecukupan')
+            ->whereNull('ceklis_dokumen')
+            ->latest()->get();
+        return view('admin.audit_berkas', compact('pengajuans'));
+    }
+
+    public function layananPenugasanTim()
+    {
+        $pengajuans = Pengajuan::with('user')->whereIn('status', ['proses_evaluasi', 'proses_audit'])->latest()->get();
+        return view('admin.placeholder_table', [
+            'title' => 'Penugasan Tim Audit & Lab',
+            'subtitle' => 'Penunjukan personel Tim Audit, PPC, dan Laboratorium Uji.',
+            'pengajuans' => $pengajuans
+        ]);
+    }
+
+    public function layananEvaluasiLaporan()
+    {
+        $pengajuans = Pengajuan::with('user')->where('status', 'evaluasi')->latest()->get();
+        return view('admin.placeholder_table', [
+            'title' => 'Evaluasi Laporan Hasil Uji',
+            'subtitle' => 'Evaluasi atas Laporan Hasil Audit dan Laporan Hasil Uji (LHU).',
+            'pengajuans' => $pengajuans
+        ]);
+    }
+
+    public function layananKomisiTeknis()
+    {
+        $pengajuans = Pengajuan::with('user')->where('status', 'keputusan')->latest()->get();
+        return view('admin.placeholder_table', [
+            'title' => 'Kajian Komisi Teknis',
+            'subtitle' => 'Persiapan bahan dan hasil sidang Komisi Teknis LSPro.',
+            'pengajuans' => $pengajuans
+        ]);
+    }
+
+    public function auditLKS()
+    {
+        $pengajuans = Pengajuan::with('user')->where('status', 'proses_audit')->latest()->get();
+        return view('admin.placeholder_table', [
+            'title' => 'Laporan Ketidaksesuaian (LKS)',
+            'subtitle' => 'Pencatatan dan verifikasi tindakan perbaikan (CAPA) dari klien.',
+            'pengajuans' => $pengajuans
+        ]);
+    }
+
+    public function superadminPersetujuanPenugasan()
+    {
+        $pengajuans = Pengajuan::with('user')->whereIn('status', ['proses_evaluasi', 'proses_audit'])->latest()->get();
+        return view('admin.placeholder_table', [
+            'title' => 'Persetujuan Penugasan',
+            'subtitle' => 'Persetujuan Surat Tugas Tim Audit dan personel terkait.',
+            'pengajuans' => $pengajuans
+        ]);
+    }
+
+    public function superadminPengesahanSertifikat()
+    {
+        $pengajuans = Pengajuan::with('user')->where('status', 'keputusan')->latest()->get();
+        return view('admin.placeholder_table', [
+            'title' => 'Pengesahan Sertifikat Kesesuaian SNI',
+            'subtitle' => 'Persetujuan akhir dan penandatanganan Sertifikat Kesesuaian SNI oleh Ketua LSPro.',
+            'pengajuans' => $pengajuans
+        ]);
+    }
+
+    public function formLhp($id)
+    {
+        $pengajuan = Pengajuan::with('user')->findOrFail($id);
+        
+        if (\App\Support\LsproType5Workflow::normalize($pengajuan->status) !== 'menunggu_lhp') {
+            return redirect()->route('admin.dashboard')->with('error', 'Status pengajuan tidak sedang menunggu Laporan Hasil Uji (LHP).');
+        }
+
+        return view('admin.form_lhp', compact('pengajuan'));
+    }
+
+    public function uploadLhp(Request $request, $id)
+    {
+        $pengajuan = Pengajuan::with('user')->findOrFail($id);
+
+        $request->validate([
+            'file_lhp' => 'required|file|mimes:pdf|max:10240',
+        ]);
+
+        if ($request->hasFile('file_lhp')) {
+            $file = $request->file('file_lhp');
+            $filename = time() . '_lhp_' . $pengajuan->id . '.' . $file->getClientOriginalExtension();
+            
+            $folder = 'lhp/' . $pengajuan->id;
+            $file->storeAs($folder, $filename, 'public');
+
+            $formData = is_array($pengajuan->data_form) ? $pengajuan->data_form : (json_decode($pengajuan->data_form, true) ?? []);
+            $formData['file_lhp'] = $pengajuan->id . '/' . $filename;
+            
+            $pengajuan->data_form = $formData;
+            $pengajuan->transitionTo(
+                'tinjauan_lhp', 
+                'Laboratorium telah mengunggah Laporan Hasil Uji (LHP). Menunggu tinjauan tim audit.', 
+                auth()->id()
+            );
+            $pengajuan->save();
+
+            \App\Helpers\NotificationHelper::sendToRole('layanan', 'LHP Diunggah', 'Laboratorium telah mengunggah Laporan Hasil Uji (LHP) untuk pengajuan #' . $pengajuan->id . '. Silakan lakukan tinjauan LHP.', 'info', $pengajuan->id);
+            \App\Helpers\NotificationHelper::sendToUser($pengajuan->user_id, 'LHP Diunggah', 'Laboratorium telah selesai menguji sampel Anda. Laporan Hasil Pengujian (LHP) telah diteruskan ke LSPro untuk ditinjau.', 'success', $pengajuan->id);
+            
+            return redirect()->route('admin.dashboard')->with('success', 'Laporan Hasil Uji (LHP) berhasil diunggah dan sedang menuggu tinjauan.');
+        }
+
+        return back()->with('error', 'Gagal mengunggah LHP.');
+    }
+
+    public function auditHasilLab()
+    {
+        $pengajuans = Pengajuan::with('user')
+            ->whereIn('status', ['proses_lab', 'menunggu_lhp', 'tinjauan_lhp'])
+            ->latest()
+            ->get();
+        return view('admin.placeholder_table', [
+            'title' => 'Hasil Laboratorium Uji',
+            'subtitle' => 'Daftar hasil uji laboratorium yang terintegrasi (LHU) dan menanti Tinjauan.',
+            'pengajuans' => $pengajuans
+        ]);
+    }
+
+    public function tinjauLhp($id)
+    {
+        $pengajuan = Pengajuan::with('user')->findOrFail($id);
+        
+        if (\App\Support\LsproType5Workflow::normalize($pengajuan->status) !== 'tinjauan_lhp') {
+            return redirect()->route('admin.dashboard')->with('error', 'Status pengajuan tidak sedang dalam tahap tinjauan LHP.');
+        }
+
+        return view('admin.tinjau_lhp', compact('pengajuan'));
+    }
+
+    public function prosesTinjauLhp(Request $request, $id)
+    {
+        $pengajuan = Pengajuan::with('user')->findOrFail($id);
+
+        $request->validate([
+            'keputusan' => 'required|in:setuju,perbaikan',
+            'catatan' => 'required_if:keputusan,perbaikan'
+        ]);
+
+        if ($request->keputusan === 'setuju') {
+            $pengajuan->transitionTo(
+                'billing_4',
+                'Tinjauan Hasil LHP disetujui. ' . ($request->catatan ?? 'Menunggu penerbitan Billing 4 (Sidang Komtek).'),
+                auth()->id()
+            );
+            $pengajuan->save();
+
+            \App\Helpers\NotificationHelper::sendToRole('layanan', 'Tinjauan LHP Selesai', 'Tinjauan LHP untuk pengajuan #' . $pengajuan->id . ' disetujui. Silakan terbitkan Billing 4.', 'info', $pengajuan->id);
+            \App\Helpers\NotificationHelper::sendToUser($pengajuan->user_id, 'Hasil Uji LHP Disetujui', 'Laporan Hasil Pengujian (LHP) Anda telah disetujui. Menunggu penerbitan tahap selanjutnya.', 'success', $pengajuan->id);
+
+            return redirect()->route('admin.dashboard')->with('success', 'Tinjauan LHP disetujui, lanjut ke Billing 4.');
+        } else {
+            // Perbaikan -> Langsung menuju Billing 3 untuk Penagihan Ulang (Re-Audit) & BDLT
+            $pengajuan->transitionTo(
+                'billing_3',
+                'Tinjauan Hasil LHP memerlukan perbaikan/re-audit. ' . $request->catatan,
+                auth()->id()
+            );
+            $pengajuan->save();
+
+            \App\Helpers\NotificationHelper::sendToRole('keuangan', 'Penagihan Re-Audit LHP', 'LHP untuk pengajuan #' . $pengajuan->id . ' ditolak. Silakan terbitkan kembali tagihan Audit Kesesuaian (Billing 3) dan BDLT untuk keperluan Re-Audit.', 'warning', $pengajuan->id);
+            \App\Helpers\NotificationHelper::sendToUser($pengajuan->user_id, 'Hasil Uji LHP Ditolak (Re-Audit)', 'Laporan Hasil Pengujian (LHP) Anda memerlukan perbaikan. Anda akan menerima tagihan untuk pelaksanaan re-audit.', 'error', $pengajuan->id);
+
+            return redirect()->route('admin.dashboard')->with('error', 'LHP dikembalikan, pengajuan dialihkan ke tahap Penagihan Re-Audit (Billing 3).');
+        }
+    }
+
+    public function dummyTeruskan(Request $request)
+    {
+        if ($request->has('status')) {
+            session(['dummy_status' => $request->status]);
+        }
+        return redirect()->back()->with('dummy_success', '1');
+    }
+
+    // =========================================================================
+    // 📝 PENGISIAN FORM DINAMIS & AUTO-GENERATE WORD
+    // =========================================================================
+
+    /**
+     * Tampilkan halaman pengisian form dinamis (berdasarkan Form Builder)
+     */
+    public function isiFormDinamis($id, $form_type)
+    {
+        $pengajuan = Pengajuan::with('user')->findOrFail($id);
+        
+        // Ambil struktur form (pertanyaan-pertanyaan) dari database
+        $formFields = \App\Models\FormField::where('form_type', $form_type)->orderBy('order_index')->get();
+        
+        if ($formFields->isEmpty()) {
+            return redirect()->back()->with('error', 'Formulir ini belum memiliki pertanyaan/field. Silakan atur di Form Builder.');
+        }
+
+        $formFieldsBySection = $formFields->groupBy('section');
+        
+        // Ambil info nama form
+        $formTypes = \App\Http\Controllers\Superadmin\FormBuilderController::getDynamicFormTypes();
+        $typeMeta = $formTypes[$form_type] ?? ['title' => 'Isi Dokumen', 'filename' => ''];
+
+        return view('admin.form_dinamis.isi_form', compact('pengajuan', 'form_type', 'formFieldsBySection', 'typeMeta'));
+    }
+
+    /**
+     * Simpan hasil pengisian form dinamis dan generate Word (.docx)
+     */
+    public function simpanFormDinamis(Request $request, $id, $form_type)
+    {
+        $pengajuan = Pengajuan::findOrFail($id);
+        $formFields = \App\Models\FormField::where('form_type', $form_type)->get();
+
+        // 1. Validasi dinamis
+        $validationRules = [];
+        foreach ($formFields as $field) {
+            $rule = $field->is_required ? 'required|' : 'nullable|';
+            $rule .= match($field->type) {
+                'number' => 'numeric',
+                'email'  => 'email|max:255',
+                'date'   => 'date',
+                default  => 'string|max:1000',
+            };
+            $validationRules[$field->name] = rtrim($rule, '|');
+        }
+        $request->validate($validationRules);
+
+        // 2. Kumpulkan data
+        $inputData = $request->except(['_token']);
+        
+        // 3. Generate Word (.docx)
+        $formTypes = \App\Http\Controllers\Superadmin\FormBuilderController::getDynamicFormTypes();
+        $templateFilename = $formTypes[$form_type]['filename'] ?? null;
+        
+        if (!$templateFilename) {
+            return redirect()->back()->with('error', 'Template file (.docx) tidak ditemukan untuk form ini.');
+        }
+
+        $templatePath = storage_path('app/templates/' . $templateFilename);
+        if (!file_exists($templatePath)) {
+            return redirect()->back()->with('error', 'File template fisik (.docx) tidak ditemukan: ' . $templateFilename);
+        }
+
+        try {
+            $templateProcessor = new TemplateProcessor($templatePath);
+            
+            // Set value untuk setiap field dinamis
+            foreach ($inputData as $key => $value) {
+                $templateProcessor->setValue($key, htmlspecialchars($value));
+            }
+            
+            // Set beberapa global variable (dari pengajuan)
+            $templateProcessor->setValue('nomor_registrasi', $pengajuan->nomor_registrasi ?? $pengajuan->id);
+            $templateProcessor->setValue('nama_perusahaan', $pengajuan->user->name ?? '');
+
+            $outputFileName = 'Filled_' . str_replace('.docx', '', $templateFilename) . '_' . $pengajuan->id . '.docx';
+            
+            // Pastikan direktori ada
+            if (!is_dir(storage_path('app/public/generated_forms'))) {
+                mkdir(storage_path('app/public/generated_forms'), 0755, true);
+            }
+
+            $savePath = storage_path('app/public/generated_forms/' . $outputFileName);
+            $templateProcessor->saveAs($savePath);
+
+            // Langsung otomatis terdownload ke user
+            return response()->download($savePath)->deleteFileAfterSend(false);
+            
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Gagal memproses template: ' . $e->getMessage());
+        }
+    }
+
+    public function createInvoice(Request $request, $id)
+    {
+        $request->validate([
+            'file_invoice' => 'required|mimes:pdf,jpg,png,jpeg|max:5120',
+        ]);
+
+        $pengajuan = Pengajuan::with('rabItems')->findOrFail($id);
+        $status = $pengajuan->status;
+        
+        if (!in_array($status, ['billing_1', 'billing_2', 'billing_3', 'billing_4'])) {
+            return back()->with('error', 'Status pengajuan saat ini tidak mengizinkan pembuatan tagihan.');
+        }
+        
+        // Pastikan RAB sudah dibuat
+        if ($pengajuan->rabItems->isEmpty()) {
+            return back()->with('error', 'Gagal menerbitkan tagihan. RAB Master belum dibuat untuk pengajuan ini.');
+        }
+
+        // Tentukan Kategori RAB berdasarkan status tagihan
+        $kategoriTarget = '';
+        $jenisTagihanDb = $status; // Default untuk DB (billing_1, billing_2, dll)
+        $namaTagihanLabel = strtoupper(str_replace('_', ' ', $status));
+        
+        $isBdlt = $request->query('jenis') === 'bdlt';
+
+        if ($status === 'billing_1') {
+            $kategoriTarget = 'Permohonan';
+        } elseif ($status === 'billing_2') {
+            $kategoriTarget = 'Audit Kecukupan';
+            $namaTagihanLabel = 'BILLING 2 (AUDIT KECUKUPAN)';
+        } elseif ($status === 'billing_3') {
+            if ($isBdlt) {
+                $kategoriTarget = 'Biaya Di Luar Tarif (BDLT)';
+                $jenisTagihanDb = 'billing_3_bdlt';
+                $namaTagihanLabel = 'BILLING 3 (BDLT)';
+            } else {
+                $kategoriTarget = 'Audit Kesesuaian';
+                $namaTagihanLabel = 'BILLING 3 (AUDIT KESESUAIAN)';
+            }
+        } elseif ($status === 'billing_4') {
+            $kategoriTarget = 'Sidang Komisi Teknis';
+            $namaTagihanLabel = 'BILLING 4 (SIDANG KOMTEK)';
+        }
+        
+        // Hitung total dari kategori terkait
+        $totalAmount = 0;
+        foreach ($pengajuan->rabItems as $item) {
+            // Bisa menggunakan str_contains untuk lebih fleksibel
+            if (str_contains(strtolower($item->kategori), strtolower($kategoriTarget))) {
+                if ($item->tarif_pnbp_total !== null) {
+                    $totalAmount += $item->tarif_pnbp_total;
+                }
+            }
+        }
+        
+        // Jika tidak ada komponen untuk kategori tersebut
+        if ($totalAmount == 0) {
+            return back()->with('error', "Gagal menerbitkan tagihan. Tidak ditemukan nominal pada RAB Master untuk tahap $kategoriTarget.");
+        }
+
+        $sequence = $pengajuan->invoices()->count() + 1;
+
+        $extension = $request->file('file_invoice')->getClientOriginalExtension();
+        $filename = 'tagihan_' . $jenisTagihanDb . '_' . $pengajuan->id . '_' . time() . '.' . $extension;
+        $path = $request->file('file_invoice')->storeAs('invoices', $filename, 'public');
+        $pengajuan->invoices()->create([
+            'invoice_number' => sprintf(
+                'INV/LSPRO/%s/%05d/%02d',
+                now()->format('Y'),
+                $pengajuan->id,
+                $sequence
+            ),
+            'invoice_date' => now()->toDateString(),
+            'due_date' => now()->addDays(7)->toDateString(),
+            'amount_total' => $totalAmount,
+            'amount_paid' => 0,
+            'status' => 'unpaid',
+            'jenis_tagihan' => $jenisTagihanDb,
+            'file_invoice' => $path,
+            'notes' => 'Billing telah diterbitkan oleh Keuangan. Menunggu pembayaran klien.',
+        ]);
+
+        NotificationHelper::sendToUser($pengajuan->user_id, 'Invoice Diterbitkan', 'Invoice baru (' . $namaTagihanLabel . ') telah diterbitkan untuk pengajuan #' . $pengajuan->id, 'info', $pengajuan->id);
+
+        return back()->with('success', 'Tagihan (Invoice) berhasil diterbitkan secara otomatis dari RAB.');
+    }
+
+    public function createRab($id)
+    {
+        $pengajuan = Pengajuan::with('user', 'rabItems')->findOrFail($id);
+        $rabItems = $pengajuan->rabItems;
+
+        return view('admin.rab.create', compact('pengajuan', 'rabItems'));
+    }
+
+    public function storeRab(Request $request, $id)
+    {
+        $pengajuan = Pengajuan::findOrFail($id);
+        
+        $items = $request->input('rab', []);
+        
+        // Hapus RAB lama
+        \App\Models\RabItem::where('pengajuan_id', $pengajuan->id)->delete();
+        
+        foreach ($items as $kategori => $komponenList) {
+            foreach ($komponenList as $index => $item) {
+                // Lewati jika komponen kosong
+                if (empty($item['komponen'])) continue;
+
+                $hari = isset($item['hari']) && $item['hari'] !== '' ? (int)$item['hari'] : null;
+                $orang = isset($item['orang']) && $item['orang'] !== '' ? (int)$item['orang'] : null;
+                $tarifSatuan = isset($item['tarif']) && $item['tarif'] !== '' ? str_replace('.', '', $item['tarif']) : null;
+                
+                // Hitung total PNBP untuk row ini
+                $tarifTotal = null;
+                if ($tarifSatuan !== null) {
+                    $tarifTotal = (int)$tarifSatuan;
+                    if ($hari !== null) $tarifTotal *= $hari;
+                    if ($orang !== null) $tarifTotal *= $orang;
+                }
+
+                \App\Models\RabItem::create([
+                    'pengajuan_id' => $pengajuan->id,
+                    'kategori' => $kategori,
+                    'komponen' => $item['komponen'],
+                    'hari' => $hari,
+                    'orang' => $orang,
+                    'tarif_pnbp_satuan' => $tarifSatuan,
+                    'tarif_pnbp_total' => $tarifTotal,
+                ]);
+            }
+        }
+        
+        // Update tagihan (Invoice) yang sudah diterbitkan tapi belum lunas agar nominalnya sinkron
+        $unpaidInvoices = \App\Models\Invoice::where('pengajuan_id', $pengajuan->id)
+                            ->where('status', 'unpaid')
+                            ->get();
+
+        $newItems = \App\Models\RabItem::where('pengajuan_id', $pengajuan->id)->get();
+        foreach($unpaidInvoices as $inv) {
+            $kategoriTarget = '';
+            if ($inv->jenis_tagihan === 'billing_1') {
+                $kategoriTarget = 'Permohonan';
+            } elseif ($inv->jenis_tagihan === 'billing_2') {
+                $kategoriTarget = 'Audit Kecukupan';
+            } elseif ($inv->jenis_tagihan === 'billing_2_bdlt') {
+                $kategoriTarget = 'Biaya Di Luar Tarif (BDLT)';
+            } elseif ($inv->jenis_tagihan === 'billing_3') {
+                $kategoriTarget = 'Audit Kesesuaian';
+            } elseif ($inv->jenis_tagihan === 'billing_3_bdlt') {
+                $kategoriTarget = 'Biaya Di Luar Tarif (BDLT)';
+            } elseif ($inv->jenis_tagihan === 'billing_4') {
+                $kategoriTarget = 'Evaluasi / Sidang Komtek';
+            }
+            
+            if ($kategoriTarget) {
+                $totalAmount = 0;
+                foreach ($newItems as $i) {
+                    if (str_contains(strtolower($i->kategori), strtolower($kategoriTarget))) {
+                        if ($i->tarif_pnbp_total !== null) {
+                            $totalAmount += $i->tarif_pnbp_total;
+                        }
+                    }
+                }
+                $inv->update(['amount_total' => $totalAmount]);
+            }
+        }
+        
+        return redirect()->route('admin.panel_keuangan')->with('success', 'RAB Master berhasil disimpan & Tagihan otomatis disinkronisasi.');
+    }
 }
+

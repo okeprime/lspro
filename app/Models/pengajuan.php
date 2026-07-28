@@ -35,6 +35,11 @@ class Pengajuan extends Model
         'ceklis_dokumen',
         'catatan',
         'nama_tu',
+        'jadwal_audit',
+        'tanggal_pengambilan_contoh',
+        'is_jadwal_disetujui',
+        'file_lhp',
+        'batas_waktu_lhp',
     ];
 
     /**
@@ -42,6 +47,10 @@ class Pengajuan extends Model
      */
     protected $casts = [
         'data_form' => 'array',
+        'jadwal_audit' => 'datetime',
+        'tanggal_pengambilan_contoh' => 'datetime',
+        'batas_waktu_lhp' => 'datetime',
+        'is_jadwal_disetujui' => 'boolean',
     ];
 
     /**
@@ -119,11 +128,31 @@ class Pengajuan extends Model
         return $this->hasMany(PengajuanStatusHistory::class)->latest();
     }
 
+    public function rabItems(): HasMany
+    {
+        return $this->hasMany(RabItem::class, 'pengajuan_id');
+    }
+
     /**
      * ========================================
      * HELPER METHODS
      * ========================================
      */
+
+    public function getCatatanAttribute()
+    {
+        $status = LsproType5Workflow::normalize($this->status);
+        if (!LsproType5Workflow::isCorrection($status)) {
+            return null;
+        }
+
+        $history = $this->statusHistories()
+            ->whereNotNull('notes')
+            ->whereIn('to_status', ['perbaikan', 'tindakan_perbaikan'])
+            ->first();
+
+        return $history ? $history->notes : ($this->catatan_admin ?? '-');
+    }
 
     /**
      * Cek apakah ini adalah pengajuan sertifikasi awal
@@ -167,7 +196,20 @@ class Pengajuan extends Model
 
     public function workflowStage(): int
     {
-        return LsproType5Workflow::stageFor($this->status);
+        $status = LsproType5Workflow::normalize($this->status);
+        $baseStage = LsproType5Workflow::stageFor($status);
+        
+        if (LsproType5Workflow::isCorrection($status)) {
+            $lastHistory = $this->statusHistories()
+                ->whereNotIn('to_status', ['perbaikan', 'tindakan_perbaikan', 'draft'])
+                ->first();
+                
+            if ($lastHistory) {
+                return LsproType5Workflow::stageFor($lastHistory->to_status);
+            }
+        }
+        
+        return $baseStage;
     }
 
     public function workflowStageMeta(): array
@@ -177,7 +219,16 @@ class Pengajuan extends Model
 
     public function workflowStatusLabel(): string
     {
-        return LsproType5Workflow::statusLabel($this->status);
+        $label = LsproType5Workflow::statusLabel($this->status);
+        
+        if (in_array($this->status, ['billing_1', 'billing_2', 'billing_3', 'billing_4'])) {
+            $hasInvoice = $this->invoices()->where('jenis_tagihan', $this->status)->exists();
+            if (!$hasInvoice) {
+                $label = str_replace('Pembayaran', 'Penerbitan', $label);
+            }
+        }
+        
+        return $label;
     }
 
     public function workflowProgress(): int
@@ -204,5 +255,6 @@ class Pengajuan extends Model
             'to_status' => $status,
             'notes' => $notes,
         ]);
+
     }
 }

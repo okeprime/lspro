@@ -10,7 +10,7 @@
                 <div>
                     <h3 class="fw-bold mb-1" style="color: #1e293b;">Upload Lampiran Pengajuan</h3>
                     <p class="text-muted mb-0">
-                        Verifikasi Tata Usaha sudah selesai. Lengkapi lampiran pendukung berikut bila diperlukan untuk tahap perjanjian.
+                        Verifikasi Administrasi sudah selesai. Lengkapi lampiran pendukung berikut bila diperlukan untuk tahap perjanjian.
                     </p>
                 </div>
                 <a href="{{ route('aktivitas.index') }}" class="btn btn-outline-secondary">
@@ -33,15 +33,40 @@
                 Format yang diterima: PDF, JPG, PNG, DOC, DOCX. Ukuran maksimal 50 MB per file.
             </div>
 
+            <div class="alert alert-warning border-0 d-flex align-items-center justify-content-between" style="border-radius: 12px; background-color: #fef3c7;">
+                <div>
+                    <strong>Dokumen Perjanjian Sertifikasi</strong><br>
+                    Anda wajib mengunduh, menandatangani, dan mengunggah kembali dokumen Perjanjian Sertifikasi.
+                </div>
+                <a href="{{ route('pengajuan.perjanjian.cetak', $pengajuan->id) }}" target="_blank" class="btn btn-warning fw-semibold px-4" style="border-radius: 8px;">
+                    <i class="fa-solid fa-download me-2"></i> Unduh Draf Perjanjian
+                </a>
+            </div>
+
             <form action="{{ route('pengajuan.lampiran.store', $pengajuan->id) }}" method="POST" enctype="multipart/form-data">
                 @csrf
 
                 <div class="row g-3">
                     @foreach ($lampiranFields as $field => $meta)
                         <div class="col-md-6">
+                            @php
+                                $ceklisData = json_decode($pengajuan->ceklis_dokumen, true) ?? [];
+                                $isPerbaikanKelengkapan = $pengajuan->status === 'perbaikan' && !empty($pengajuan->nama_tu);
+                                $evaluasiItem = $ceklisData[$loop->index] ?? null;
+                                $isRejected = $isPerbaikanKelengkapan && (
+                                    (isset($evaluasiItem['evaluasi']) && $evaluasiItem['evaluasi'] === 'tidak') || 
+                                    (isset($evaluasiItem['kebenaran']) && $evaluasiItem['kebenaran'] === 'tidak')
+                                );
+                                $catatanItem = $evaluasiItem['keterangan'] ?? '';
+                            @endphp
+
                             <label class="form-label fw-semibold">
                                 {{ $meta['label'] }}
-                                @if (!empty($formData[$field]))
+                                @if ($isRejected)
+                                    <span class="badge bg-danger-subtle text-danger ms-2 border border-danger-subtle px-2 py-1" style="font-size: 10px; border-radius: 6px;">
+                                        <i class="fa-solid fa-triangle-exclamation me-1"></i>Perlu Diperbaiki
+                                    </span>
+                                @elseif (!empty($formData[$field]))
                                     <span class="badge bg-success-subtle text-success ms-2 border border-success-subtle px-2 py-1" style="font-size: 10px; border-radius: 6px;">
                                         <i class="fa-solid fa-check-circle me-1"></i>Tersimpan
                                     </span>
@@ -52,9 +77,15 @@
                                 @endif
                             </label>
 
+                            @if ($isRejected && !empty($catatanItem))
+                                <div class="alert alert-danger p-2 mb-2" style="font-size: 12px; border-radius: 6px;">
+                                    <strong>Catatan Evaluator:</strong> {{ $catatanItem }}
+                                </div>
+                            @endif
+
                             @if (!empty($formData[$field]))
                                 <!-- File sudah ada -->
-                                <div id="view-mode-{{ $field }}" class="d-flex align-items-center justify-content-between border rounded p-2 bg-light">
+                                <div id="view-mode-{{ $field }}" class="d-flex align-items-center justify-content-between border rounded p-2 {{ $isRejected ? 'bg-danger-subtle border-danger' : 'bg-light' }}">
                                     <div class="d-flex align-items-center gap-2 overflow-hidden" style="max-width: 70%;">
                                         <i class="fa-solid fa-file-lines text-primary fs-5"></i>
                                         <span class="text-truncate fw-medium" style="font-size: 13px;" title="{{ $formData[$field] }}">
@@ -62,7 +93,7 @@
                                         </span>
                                     </div>
                                     <div class="d-flex gap-1">
-                                        <a href="{{ asset('storage/permohonan/lampiran/' . $formData[$field]) }}" target="_blank" class="btn btn-sm btn-outline-secondary" title="Lihat Dokumen" style="padding: 0.25rem 0.5rem; border-radius: 6px;">
+                                        <a href="{{ url('/unduh/permohonan/lampiran/' . $formData[$field]) }}" target="_blank" class="btn btn-sm btn-outline-secondary" title="Lihat Dokumen" style="padding: 0.25rem 0.5rem; border-radius: 6px;">
                                             <i class="fa-solid fa-eye"></i>
                                         </a>
                                         <button type="button" class="btn btn-sm btn-outline-danger" title="Ganti Dokumen" style="padding: 0.25rem 0.5rem; border-radius: 6px;" 

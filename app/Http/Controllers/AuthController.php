@@ -65,7 +65,6 @@ class AuthController extends Controller
         $request->validate([
             'nama_perusahaan' => ['required', 'string', 'max:255'],
             'nama_penghubung' => ['required', 'string', 'max:255'],
-            'no_telp' => ['required', 'string', 'max:50'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
             'password' => ['required', 'string', 'min:6'], 
             'alamat' => ['required', 'string'],
@@ -75,7 +74,7 @@ class AuthController extends Controller
         $user = User::create([
             'nama_perusahaan' => $request->nama_perusahaan,
             'nama_penghubung' => $request->nama_penghubung,
-            'no_telp' => $request->no_telp,
+            'no_telp' => null, // No longer collected at registration
             'email' => $request->email,
             'alamat' => $request->alamat,
             'password' => Hash::make($request->password), // Enkripsi password demi keamanan

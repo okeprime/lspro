@@ -19,4 +19,16 @@ class SertifikatController extends Controller
 
         return view('client.sertifikat', compact('sertifikats'));
     }
+
+    public function cetak($id)
+    {
+        $pengajuan = Pengajuan::findOrFail($id);
+        
+        // Ensure the user owns this pengajuan or is admin
+        if ($pengajuan->user_id !== Auth::id() && Auth::user()->role !== 'Admin') {
+            abort(403, 'Unauthorized access.');
+        }
+
+        return view('client.cetak_sertifikat', compact('pengajuan'));
+    }
 }

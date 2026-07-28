@@ -10,23 +10,13 @@ use Illuminate\Support\Facades\Auth;
 
 class PengajuanController extends Controller
 {
-    /**
-     * 1. Halaman Pilih Tahap (Menu Pendaftaran Awal)
-     */
-    public function pilihTahap()
+    public function index()
     {
-        if (view()->exists('pengajuan.pilih_tahap')) {
-            return view('pengajuan.pilih_tahap');
-        }
-        return view('pengajuan.create_otomatis', [
-            'tahap' => '7.2',
-            'jenisSertifikasi' => 'Sertifikasi Baru',
-            'formData' => [],
-            'draft' => null
-        ]); 
+        return view('pengajuan.index');
     }
 
     /**
+     * 1. Halaman Pilih Tahap (Menu Pendaftaran Awal)
      * 2. Tampilkan Form Input Data (Tahap 1)
      */
     public function create(Request $request)
@@ -54,7 +44,12 @@ class PengajuanController extends Controller
             }
         }
 
-        return view('pengajuan.create_otomatis', compact('tahap', 'jenisSertifikasi', 'formData', 'draft'));
+
+
+        $formFields = \App\Models\FormField::where('form_type', 'permohonan')->orderBy('order_index')->get();
+        $formFieldsBySection = $formFields->groupBy('section');
+
+        return view('pengajuan.create_otomatis', compact('tahap', 'jenisSertifikasi', 'formData', 'draft', 'formFieldsBySection'));
     }
 
     /**
@@ -62,75 +57,91 @@ class PengajuanController extends Controller
      */
     public function store(Request $request)
     {
-        // A. VALIDASI SELURUH INPUTAN SESUAI FORM BLADE
-        $request->validate([
-            'tahap'                     => 'required',
-            'nama_pemohon'              => 'required|string|max:255',
-            'jabatan_pemohon'           => 'required|string|max:255',
-            'alamat_pemohon'            => 'required|string',
-            'telp_pemohon'              => 'required|string',
-            'hp_pemohon'                => 'required|string',
-            'kewarganegaraan_pemohon'   => 'required|string',
-            'nama_perusahaan'           => 'required|string',
-            'nama_penghubung'           => 'required|string',
-            'alamat_kantor'             => 'required|string',
-            'alamat_pabrik'             => 'required|string',
+        // A. BUILD DYNAMIC VALIDATION RULES from FormField DB table
+        $formFields = \App\Models\FormField::where('form_type', 'permohonan')->orderBy('order_index')->get();
+        $validationRules = ['tahap' => 'required'];
+        foreach ($formFields as $field) {
+            if ($field->type === 'file') continue; // File handled separately
             
-            // Ruang Lingkup Produk
-            'nama_produk'               => 'required|string',
-            'merek_produk'              => 'required|string',
-            'tipe_produk'               => 'required|string',
-            'no_sni'                    => 'required|string',
-            'kapasitas_produksi'        => 'required|string',
-            'standar_smm'               => 'required|string',
-            
-            // Tenaga Kerja
-            'total_tk'                  => 'required|integer',
-            'tk_produksi'               => 'required|integer',
-            'tk_mutu'                   => 'required|integer',
-            'tk_staf'                   => 'required|integer',
-            'tk_nonstaf'                => 'required|integer',
-        ]);
+            // Only validate if the field exists in the HTML form to prevent mismatch with DB seeder
+            if ($request->has($field->name) || $request->exists($field->name)) {
+                $rule = $field->is_required ? 'required|' : 'nullable|';
+                $rule .= match($field->type) {
+                    'number' => 'numeric',
+                    'email'  => 'email|max:255',
+                    'date'   => 'date',
+                    default  => 'string|max:1000',
+                };
+                $validationRules[$field->name] = rtrim($rule, '|');
+            }
+        }
+        $request->validate($validationRules);
 
         // C. STRUKTUR DATA FORM
-        $arrayDataForm = [
-            'nama_pemohon'              => $request->nama_pemohon,
-            'jabatan_pemohon'           => $request->jabatan_pemohon,
-            'alamat_pemohon'            => $request->alamat_pemohon,
-            'telp_pemohon'              => $request->telp_pemohon,
-            'hp_pemohon'                => $request->hp_pemohon,
-            'kewarganegaraan_pemohon'   => $request->kewarganegaraan_pemohon,
-            'nama_perusahaan'           => $request->nama_perusahaan,
-            'nama_penghubung'           => $request->nama_penghubung,
-            'alamat_kantor'             => $request->alamat_kantor,
-            'alamat_pabrik'             => $request->alamat_pabrik,
-            
-            // Informasi Produk
-            'nama_produk'               => $request->nama_produk,
-            'merek_produk'              => $request->merek_produk,
-            'tipe_produk'               => $request->tipe_produk,
-            'no_sni'                    => $request->no_sni,
-            'kapasitas_produksi'        => $request->kapasitas_produksi,
-            'standar_smm'               => $request->standar_smm,
-            
-            // Alokasi Tenaga Kerja
-            'total_tk'                  => $request->total_tk,
-            'tk_produksi'               => $request->tk_produksi,
-            'tk_mutu'                   => $request->tk_mutu,
-            'tk_staf'                   => $request->tk_staf,
-            'tk_nonstaf'                => $request->tk_nonstaf,
-            
-            'lampiran'                  => [] // Lampiran akan diupload pada tahap berikutnya
-        ];
+        $arrayDataForm = $request->except(['_token', 'draft_id']);
+        $arrayDataForm['lampiran'] = $request->lampiran ?? '1 Berkas';
 
-        // D. SIMPAN DATA KE DATABASE
-        $pengajuan = new Pengajuan();
+        // D. SIMPAN DATA KE DATABASE ATAU UPDATE DRAFT/PERBAIKAN
+        if ($request->filled('draft_id') && $request->draft_id !== 'temp') {
+            $pengajuan = Pengajuan::where('id', $request->draft_id)->where('user_id', Auth::id())->first() ?? new Pengajuan();
+        } else {
+            $pengajuan = new Pengajuan();
+        }
+
         $pengajuan->user_id = Auth::id() ?? 1;
         $pengajuan->tahap = $request->tahap ?? '7.2';
-        $pengajuan->jenis_pengajuan = 'Sertifikasi';
-        $pengajuan->status = 'diajukan'; 
+        $pengajuan->jenis_pengajuan = strtolower($request->jenis_sertifikasi) === 'resertifikasi' ? 'Resertifikasi' : (strtolower($request->jenis_sertifikasi) === 'survailen' ? 'Survailen' : 'Sertifikasi');
+        
+        // Generate Nomor Registrasi Berurutan (hanya saat diajukan perdana)
+        if (empty($pengajuan->nomor_registrasi)) {
+            $lastReg = Pengajuan::whereNotNull('nomor_registrasi')
+                                ->whereRaw('nomor_registrasi REGEXP "^[0-9]+$"')
+                                ->orderBy('id', 'desc')
+                                ->first();
+            
+            if ($lastReg) {
+                $nextSeq = str_pad((int)$lastReg->nomor_registrasi + 1, 5, '0', STR_PAD_LEFT);
+            } else {
+                $lastId = Pengajuan::max('id') ?? 0;
+                $nextSeq = str_pad($lastId + 1, 5, '0', STR_PAD_LEFT);
+            }
+            $pengajuan->nomor_registrasi = $nextSeq;
+        }
+
+        $oldStatus = $pengajuan->status;
+        $pengajuan->status = 'menunggu_ttd'; 
+        
+        // Save ID before creating folder
+        $pengajuan->save(); 
+        
+        $folderPengajuan = 'permohonan/' . $pengajuan->id;
+        Storage::disk('public')->makeDirectory($folderPengajuan);
+        
+        $filesToSave = ['kop_surat', 'sketsa_logo', 'foto_depan', 'foto_belakang', 'foto_kanan', 'foto_kiri'];
+        foreach ($filesToSave as $fileField) {
+            if ($request->hasFile($fileField)) {
+                $file = $request->file($fileField);
+                $filename = $fileField . '_' . time() . '.' . $file->getClientOriginalExtension();
+                Storage::disk('public')->putFileAs($folderPengajuan, $file, $filename);
+                $arrayDataForm[$fileField] = $folderPengajuan . '/' . $filename;
+            } else if ($request->filled('draft_id') && isset($pengajuan->data_form)) {
+                $oldData = json_decode($pengajuan->data_form, true);
+                if (isset($oldData[$fileField])) {
+                    $arrayDataForm[$fileField] = $oldData[$fileField];
+                }
+            }
+        }
+        
         $pengajuan->data_form = json_encode($arrayDataForm); 
         $pengajuan->save();
+
+        if ($oldStatus === 'perbaikan') {
+            $pengajuan->transitionTo(
+                'menunggu_ttd',
+                'Klien telah mengirimkan ulang formulir permohonan yang telah direvisi. Menunggu unggah Kop Surat & TTD.',
+                Auth::id()
+            );
+        }
 
         // E. AUTO-GENERATE DOKUMEN WORD (Membaca file Form_7.2-1_Permohonan.docx)
         $templatePath = storage_path('app/templates/Form_7.2-1_Permohonan.docx');
@@ -146,72 +157,50 @@ class PengajuanController extends Controller
 
         $templateProcessor = new TemplateProcessor($templatePath);
 
-        // --- 1. IDENTITAS PEMOHON ---
-        $templateProcessor->setValue('nama_pemohon', $request->nama_pemohon ?? '-');
-        $templateProcessor->setValue('alamat_pemohon', $request->alamat_pemohon ?? '-');
-        $templateProcessor->setValue('telp_pemohon', $request->telp_pemohon ?? '-');
-        $templateProcessor->setValue('hp_pemohon', $request->hp_pemohon ?? '-');
-        $templateProcessor->setValue('kewarganegaraan_pemohon', $request->kewarganegaraan_pemohon ?? '-');
-        $templateProcessor->setValue('jabatan_pemohon', $request->jabatan_pemohon ?? '-');
-        $templateProcessor->setValue('status_pemohon', $request->status_pemohon ?? '-'); 
-        
-        // --- 2. IDENTITAS PENGHUBUNG & PERUSAHAAN ---
-        $templateProcessor->setValue('nama_penghubung', $request->nama_penghubung ?? '-');
-        $templateProcessor->setValue('jabatan_penghubung', $request->jabatan_penghubung ?? '-');
-        $templateProcessor->setValue('nama_perusahaan', $request->nama_perusahaan ?? '-');
-        $templateProcessor->setValue('alamat_perusahaan', $request->alamat_kantor ?? '-'); 
+        // --- DYNAMIC FIELD MAPPING: Loop semua field dari request ---
+        foreach ($arrayDataForm as $key => $value) {
+            if (is_array($value)) {
+                $value = implode(', ', $value);
+            }
+            if (is_string($value) || is_numeric($value)) {
+                if (empty($value)) $value = '-';
+                try {
+                    if ($key === 'waktu_pabrik' && is_numeric($value)) {
+                        $templateProcessor->setValue($key, htmlspecialchars((string) $value) . ' Menit');
+                    } else {
+                        $templateProcessor->setValue($key, htmlspecialchars((string) $value));
+                    }
+                } catch (\Exception $e) {}
+            }
+        }
+
+        // --- FIELD STATIS TAMBAHAN (Legacy & Kepala Surat) ---
+        // Alias / field yang namanya berbeda di template vs form
+        $templateProcessor->setValue('nama_pupuk', $request->nama_produk ?? '-');
+        $templateProcessor->setValue('merek_pupuk', $request->merek_produk ?? '-');
+        $templateProcessor->setValue('jenis_pupuk', $request->tipe_produk ?? '-');
+        $templateProcessor->setValue('alamat_perusahaan', $request->alamat_kantor ?? '-');
         $templateProcessor->setValue('kota_perusahaan', $request->kota_kantor ?? '-');
         $templateProcessor->setValue('provinsi_perusahaan', $request->provinsi_kantor ?? '-');
         $templateProcessor->setValue('telp_perusahaan', $request->telp_kantor ?? '-');
-        $templateProcessor->setValue('hp_penghubung', $request->hp_penghubung ?? '-');
-        $templateProcessor->setValue('email_penghubung', $request->email_penghubung ?? '-');
+        $templateProcessor->setValue('foto_produk', 'Terlampir');
+        $templateProcessor->setValue('nomor_surat', '-');
+        $templateProcessor->setValue('tempat_ttd', $request->kota_kantor ?? 'Jakarta');
+        $templateProcessor->setValue('tanggal_ttd', now()->translatedFormat('d F Y'));
+        // Status lampiran statis
+        $lampiranStatuses = [
+            'akte_perusahaan_status', 'izin_usaha_industri_status', 'siup_tdup_status',
+            'sertifikat_merek_status', 'pelimpahan_merek_status', 'api_umum_status',
+            'alur_produksi_mutu_status', 'daftar_alat_mesin_status', 'daftar_alat_uji_kalibrasi_status',
+            'pedoman_mutu_status', 'daftar_prosedur_ik_status', 'pernyataan_smm_status',
+            'ilustrasi_tanda_sni_status', 'perjanjian_sertifikasi_status',
+        ];
+        foreach ($lampiranStatuses as $ls) {
+            $templateProcessor->setValue($ls, '(Terlampir)');
+        }
 
-        // --- 3. LEGALITAS & PABRIK ---
-        $templateProcessor->setValue('badan_hukum', $request->badan_hukum ?? '-');
-        $templateProcessor->setValue('alamat_kantor', $request->alamat_kantor ?? '-');
-        $templateProcessor->setValue('kota_kantor', $request->kota_kantor ?? '-');
-        $templateProcessor->setValue('provinsi_kantor', $request->provinsi_kantor ?? '-');
-        $templateProcessor->setValue('telp_kantor', $request->telp_kantor ?? '-');
-        $templateProcessor->setValue('email_kantor', $request->email_kantor ?? '-');
-        $templateProcessor->setValue('alamat_pabrik', $request->alamat_pabrik ?? '-');
-        $templateProcessor->setValue('kota_pabrik', $request->kota_pabrik ?? '-');
-        $templateProcessor->setValue('provinsi_pabrik', $request->provinsi_pabrik ?? '-');
-        $templateProcessor->setValue('telp_pabrik', $request->telp_pabrik ?? '-');
-        $templateProcessor->setValue('email_pabrik', $request->email_pabrik ?? '-');
-
-        // --- 4. IMPORTIR & LAIN-LAIN ---
-        $templateProcessor->setValue('nama_importir', $request->nama_importir ?? '-');
-        $templateProcessor->setValue('alamat_importir', $request->alamat_importir ?? '-');
-        $templateProcessor->setValue('api_importir', $request->api_importir ?? '-');
-        $templateProcessor->setValue('bahasa_pabrik', $request->bahasa_pabrik ?? '-');
-        $templateProcessor->setValue('penerjemah_pabrik', $request->penerjemah_pabrik ?? '-');
-        $templateProcessor->setValue('jarak_pabrik', $request->jarak_pabrik ?? '-');
-        $templateProcessor->setValue('waktu_pabrik', $request->waktu_pabrik ?? '-');
-
-        // --- 5. DATA PRODUK PUPUK ---
-        $templateProcessor->setValue('nama_pupuk', $request->nama_produk ?? '-');
-        $templateProcessor->setValue('judul_sni', $request->judul_sni ?? 'SNI Pupuk Terdaftar');
-        $templateProcessor->setValue('no_sni', $request->no_sni ?? '-');
-        $templateProcessor->setValue('merek_pupuk', $request->merek_produk ?? '-');
-        $templateProcessor->setValue('jenis_pupuk', $request->tipe_produk ?? '-');
-        $templateProcessor->setValue('asal_pabrik', $request->asal_pabrik ?? '-');
-        $templateProcessor->setValue('status_produk', $request->status_produk ?? '-');
-        $templateProcessor->setValue('foto_produk', 'Terlampir pada berkas terpisah');
-
-        // --- 6. ORGANISASI & SMM ---
-        $templateProcessor->setValue('nama_wmm', $request->nama_wmm ?? '-');
-        $templateProcessor->setValue('telp_wmm', $request->telp_wmm ?? '-');
-        $templateProcessor->setValue('hp_wmm', $request->hp_wmm ?? '-');
-        $templateProcessor->setValue('email_wmm', $request->email_wmm ?? '-');
-        $templateProcessor->setValue('jumlah_lini', $request->jumlah_lini ?? '-');
-        $templateProcessor->setValue('standar_smm', $request->standar_smm ?? '-');
-
-        // --- 7. TENAGA KERJA ---
-        $templateProcessor->setValue('total_tk', $request->total_tk ?? '0');
-        $templateProcessor->setValue('tk_produksi', $request->tk_produksi ?? '0');
-        $templateProcessor->setValue('tk_mutu', $request->tk_mutu ?? '0');
-        $templateProcessor->setValue('tk_staf', $request->tk_staf ?? '0');
-        $templateProcessor->setValue('tk_nonstaf', $request->tk_nonstaf ?? '0');
+        // Clear Kop Surat placeholder as requested
+        $templateProcessor->setValue('kop_surat', '');
 
         // Menyimpan Hasil File Word Jadi
         $folderPermohonan = storage_path('app/public/permohonan');
@@ -219,7 +208,10 @@ class PengajuanController extends Controller
             mkdir($folderPermohonan, 0755, true);
         }
 
-        $namaFilePermohonan = 'Form_7.2-1_' . time() . '_' . $pengajuan->id . '.docx';
+        $namaPerusahaan = $request->input('nama_perusahaan', 'PT');
+        $safeNamaPerusahaan = preg_replace('/[^A-Za-z0-9\-]/', '_', strtolower($namaPerusahaan));
+        $safeNamaPerusahaan = trim(preg_replace('/_+/', '_', $safeNamaPerusahaan), '_');
+        $namaFilePermohonan = 'form_permohonan_' . $safeNamaPerusahaan . '_' . $pengajuan->id . '.docx';
         $templateProcessor->saveAs($folderPermohonan . DIRECTORY_SEPARATOR . $namaFilePermohonan);
 
         // Sinkronisasi file Word ke database record
@@ -228,7 +220,7 @@ class PengajuanController extends Controller
 
         // F. REDIRECT AMAN KEMBALI KE HALAMAN AKTIVITAS USER
         return redirect('/aktivitas')
-            ->with('success', 'Formulir sertifikasi pupuk berhasil dikirim! Seluruh berkas fisik & data otomatis dioper ke Tata Usaha.');
+            ->with('success', 'Formulir berhasil disimpan! Silakan unduh draft Surat Permohonan, bubuhkan Kop Surat dan Tanda Tangan, lalu unggah kembali.');
     }
 
     public function storeLampiran(Request $request, $id)
@@ -237,7 +229,10 @@ class PengajuanController extends Controller
             ->where('user_id', Auth::id())
             ->firstOrFail();
 
-        if (\App\Support\LsproType5Workflow::normalize($pengajuan->status) !== 'menunggu_lampiran') {
+        $statusNormalized = \App\Support\LsproType5Workflow::normalize($pengajuan->status);
+        $isPerbaikanKelengkapan = $statusNormalized === 'perbaikan' && !empty($pengajuan->nama_tu);
+
+        if (!in_array($statusNormalized, ['menunggu_lampiran', 'perjanjian_lampiran']) && !$isPerbaikanKelengkapan) {
             return redirect()
                 ->route('aktivitas.index')
                 ->with('error', 'Akses ditolak. Pengajuan belum berada pada tahap unggah kelengkapan.');
@@ -255,7 +250,7 @@ class PengajuanController extends Controller
         }
         $request->validate($rules);
 
-        $formData = array_merge($existingFormData, $this->simpanLampiran($request));
+        $formData = array_merge($existingFormData, $this->simpanLampiran($request, $id));
         $pengajuan->data_form = json_encode($formData);
         $pengajuan->save();
 
@@ -266,16 +261,16 @@ class PengajuanController extends Controller
         }
 
         $pengajuan->transitionTo(
-            'evaluasi_724_tu',
-            'Klien telah mengunggah dokumen kelengkapan.',
+            'billing_2',
+            'Klien telah mengunggah dokumen kelengkapan. Menunggu penerbitan Billing Audit Kecukupan.',
             Auth::id()
         );
 
-        \App\Helpers\NotificationHelper::sendToRole('tatausaha', 'Menunggu Evaluasi TU', 'Klien telah mengunggah dokumen kelengkapan untuk pengajuan #' . $pengajuan->id, 'info', $pengajuan->id);
+        \App\Helpers\NotificationHelper::sendToRole('layanan', 'Menunggu Penerbitan Billing', 'Klien telah mengunggah dokumen kelengkapan untuk pengajuan #' . $pengajuan->id . '. Tahap selanjutnya: Penerbitan Billing Audit Kecukupan oleh bagian Administrasi/Keuangan.', 'info', $pengajuan->id);
 
         return redirect()
             ->route('aktivitas.index')
-            ->with('success', 'Lampiran kelengkapan berhasil diunggah. Menunggu proses evaluasi dari Tata Usaha.');
+            ->with('success', 'Lampiran kelengkapan berhasil diunggah. Menunggu penerbitan Billing Audit dari Keuangan.');
     }
 
     public function uploadPermohonanTtd(Request $request, $id)
@@ -286,60 +281,94 @@ class PengajuanController extends Controller
 
         $request->validate([
             'file_permohonan_ttd' => 'required|file|mimes:pdf|max:10240',
-            'file_ceklis_ttd' => 'required|file|mimes:pdf|max:10240',
         ]);
 
         $folderPengajuan = 'permohonan/' . $pengajuan->id;
         Storage::disk('public')->makeDirectory($folderPengajuan);
 
-        // Permohonan 7.2-1
+        $noPermohonan = str_pad($pengajuan->id, 5, '0', STR_PAD_LEFT);
+        $filenameTtd = 'surat_permohonan_ttd_permohonan_' . $noPermohonan . '.pdf';
+        
         if ($pengajuan->file_permohonan_ttd && Storage::disk('public')->exists($pengajuan->file_permohonan_ttd)) {
             Storage::disk('public')->delete($pengajuan->file_permohonan_ttd);
         }
         Storage::disk('public')->putFileAs(
             $folderPengajuan,
             $request->file('file_permohonan_ttd'),
-            'permohonan_ttd.pdf'
+            $filenameTtd
         );
-        $pengajuan->file_permohonan_ttd = $folderPengajuan . '/permohonan_ttd.pdf';
-
-        // Ceklis 7.2-4
-        if ($pengajuan->file_ceklis_ttd && Storage::disk('public')->exists($pengajuan->file_ceklis_ttd)) {
-            Storage::disk('public')->delete($pengajuan->file_ceklis_ttd);
-        }
-        Storage::disk('public')->putFileAs(
-            $folderPengajuan,
-            $request->file('file_ceklis_ttd'),
-            'ceklis_ttd.pdf'
-        );
-        $pengajuan->file_ceklis_ttd = $folderPengajuan . '/ceklis_ttd.pdf';
+        $pengajuan->file_permohonan_ttd = $folderPengajuan . '/' . $filenameTtd;
 
         $pengajuan->transitionTo(
-            'billing',
-            'Dokumen TTD klien telah diterima. Lanjut ke proses tagihan sertifikasi (Billing).',
+            'diajukan',
+            'Surat Permohonan (dengan Kop Surat & Tanda Tangan) telah diterima. Menunggu Verifikasi Administrasi.',
             Auth::id()
         );
         $pengajuan->save();
 
-        \App\Helpers\NotificationHelper::sendToRole('tatausaha', 'Dokumen TTD Diunggah', 'Klien telah mengunggah Form 7.2-1 dan Form 7.2-4 bertanda tangan untuk pengajuan #' . $pengajuan->id, 'success', $pengajuan->id);
-        \App\Helpers\NotificationHelper::sendToUser(Auth::id(), 'Berkas Terkirim', 'Dokumen permohonan Anda telah berhasil dikirim. Menunggu proses billing.', 'success', $pengajuan->id);
+        \App\Helpers\NotificationHelper::sendToRole('layanan', 'Surat Permohonan Diunggah', 'Klien telah mengunggah Surat Permohonan (Kop & TTD) untuk pengajuan #' . $pengajuan->id . '. Tahap selanjutnya: Tinjauan Permohonan oleh bagian Layanan.', 'info', $pengajuan->id);
+        \App\Helpers\NotificationHelper::sendToUser(Auth::id(), 'Berkas Terkirim', 'Dokumen permohonan Anda telah berhasil dikirim. Menunggu verifikasi dari Administrasi.', 'success', $pengajuan->id);
 
         return redirect()
             ->route('aktivitas.index')
-            ->with('success', 'Dokumen Bertanda Tangan berhasil diunggah! Berkas Anda akan segera masuk tahap Pembayaran (Billing).');
-    }
-    public function index()
-    {
-        return view('pengajuan.index');
+            ->with('success', 'Kop Surat dan Tanda Tangan berhasil diunggah! Berkas Anda sedang diproses oleh Tim Administrasi.');
     }
 
-    public function pilihProduk(Request $request, $jenis = 'sertifikasi')
+
+    public function setujuJadwal(Request $request, $id)
     {
-        $tahap = $request->get('tahap', '7.2');
-        return view('pengajuan.pilih_produk', [
-            'jenis_pengajuan' => $jenis,
-            'tahap' => $tahap
-        ]);
+        $pengajuan = Pengajuan::where('id', $id)->where('user_id', Auth::id())->firstOrFail();
+        
+        if ($request->input('is_setuju') == '1') {
+            $pengajuan->is_jadwal_disetujui = true;
+            $pengajuan->transitionTo(
+                'billing_3',
+                'Klien telah menyetujui jadwal Audit. Menunggu pembayaran Billing 3.',
+                Auth::id()
+            );
+            $pengajuan->save();
+
+            $settingsPath = storage_path('app/settings.json');
+            $auditPrice = 15000000;
+            
+            // Cek apakah Admin sudah membuat RAB untuk Audit Kesesuaian
+            $rabTotal = \App\Models\RabItem::where('pengajuan_id', $pengajuan->id)
+                            ->where('kategori', 'like', '%Audit Kesesuaian%')
+                            ->sum('tarif_pnbp_total');
+                            
+            if ($rabTotal > 0) {
+                $auditPrice = $rabTotal;
+            } elseif (file_exists($settingsPath)) {
+                $settings = json_decode(file_get_contents($settingsPath), true);
+                $auditPrice = $settings['billing_audit_price'] ?? 15000000;
+            }
+
+            // OTOMATIS TERBITKAN BILLING 2
+            \App\Models\Invoice::create([
+                'pengajuan_id' => $pengajuan->id,
+                'invoice_number' => 'INV-' . time() . '-AUDIT',
+                'invoice_date' => now(),
+                'amount_total' => $auditPrice,
+                'status' => 'unpaid',
+                'due_date' => now()->addDays(7),
+                'jenis_tagihan' => 'billing_3',
+                'notes' => 'Invoice tahap BILLING 3 (Pelaksanaan Audit Lapangan & BDLT).',
+            ]);
+
+            \App\Helpers\NotificationHelper::sendToRole('layanan', 'Jadwal Disetujui', 'Klien telah menyetujui jadwal audit pengajuan #' . $pengajuan->id, 'success', $pengajuan->id);
+            return redirect()->route('aktivitas.index')->with('success', 'Jadwal Audit disetujui. Silakan lanjut ke proses pembayaran (Billing 3).');
+        } else {
+            $pengajuan->is_jadwal_disetujui = false;
+            $alasan = $request->input('alasan');
+            $pengajuan->transitionTo(
+                'proses_evaluasi',
+                'Klien menolak jadwal audit dengan alasan: ' . $alasan,
+                Auth::id()
+            );
+            $pengajuan->save();
+            \App\Helpers\NotificationHelper::sendToRole('layanan', 'Jadwal Ditolak', 'Klien menolak jadwal audit pengajuan #' . $pengajuan->id . '. Alasan: ' . $alasan, 'danger', $pengajuan->id);
+            return redirect()->route('aktivitas.index')->with('success', 'Penolakan jadwal telah dikirim ke Tim Audit.');
+        }
     }
 
     public function lampiran(Request $request, $id)
@@ -381,7 +410,7 @@ class PengajuanController extends Controller
         return is_array($data) ? $data : [];
     }
 
-    private function simpanLampiran(Request $request)
+    private function simpanLampiran(Request $request, $pengajuanId)
     {
         $uploaded = [];
         $tujuanFolder = storage_path('app/public/permohonan/lampiran');
@@ -392,12 +421,70 @@ class PengajuanController extends Controller
         foreach ($this->lampiranFields() as $field => $meta) {
             if ($request->hasFile($field)) {
                 $file = $request->file($field);
-                $filename = time() . '_' . $field . '.' . $file->getClientOriginalExtension();
+                $noPermohonan = str_pad($pengajuanId, 5, '0', STR_PAD_LEFT);
+                $filename = 'lampiran_' . $field . '_permohonan_' . $noPermohonan . '.' . $file->getClientOriginalExtension();
                 $file->move($tujuanFolder, $filename);
                 $uploaded[$field] = $filename;
             }
         }
         return $uploaded;
+    }
+
+    public function cetakPerjanjian($id)
+    {
+        $pengajuan = Pengajuan::where('id', $id)->where('user_id', Auth::id())->firstOrFail();
+        
+        $templateCandidates = [
+            storage_path('app/templates/Form_7.2-3_Perjanjian.docx'),
+            storage_path('app/templates/Form 7.2-3_LS Pro - Perjanjian Sertifikasi.docx'),
+            storage_path('app/templates/Form_7.2-3.docx'),
+        ];
+
+        $templatePath = collect($templateCandidates)->first(fn ($path) => file_exists($path));
+
+        if (!$templatePath) {
+            return back()->with('error', 'Template Form 7.2-3 (Perjanjian Sertifikasi) tidak ditemukan di server.');
+        }
+
+        $formData = $this->normalFormData($pengajuan);
+        $templateProcessor = new \PhpOffice\PhpWord\TemplateProcessor($templatePath);
+
+        foreach ($formData as $key => $value) {
+            if (is_scalar($value)) {
+                $templateProcessor->setValue($key, htmlspecialchars((string) $value));
+            }
+        }
+
+        $templateProcessor->setValue('nomor_permohonan', str_pad($pengajuan->id, 5, '0', STR_PAD_LEFT));
+        $templateProcessor->setValue('hari_perjanjian', now()->translatedFormat('l'));
+        $templateProcessor->setValue('tanggal_perjanjian', now()->translatedFormat('d'));
+        $templateProcessor->setValue('bulan_perjanjian', now()->translatedFormat('F'));
+        $templateProcessor->setValue('tahun_perjanjian', now()->translatedFormat('Y'));
+        
+        $templateProcessor->setValue('nama_tu', 'Anik Dwi Hastuti S.P.,M.M');
+        $templateProcessor->setValue('nama_ketua_lspro', 'Anik Dwi Hastuti S.P.,M.M');
+        $templateProcessor->setValue('nama_ketua', 'Anik Dwi Hastuti S.P.,M.M');
+        $templateProcessor->setValue('jabatan_lspro', 'Ketua LSPro BRMP SDLP');
+        
+        $templateProcessor->setValue('nama_perusahaan', htmlspecialchars($formData['nama_perusahaan'] ?? $pengajuan->user->nama_perusahaan ?? '-'));
+        $templateProcessor->setValue('alamat_perusahaan', htmlspecialchars($formData['alamat_perusahaan'] ?? $formData['alamat_pabrik'] ?? $formData['alamat_kantor'] ?? '-'));
+        $templateProcessor->setValue('nama_pemohon', htmlspecialchars($formData['nama_pemohon'] ?? $pengajuan->user->name ?? '-'));
+        $templateProcessor->setValue('jabatan_pemohon', htmlspecialchars($formData['jabatan_pemohon'] ?? $formData['jabatan_penghubung'] ?? 'Pimpinan Perusahaan'));
+        
+        $templateProcessor->setValue('nama_produk', htmlspecialchars($formData['nama_produk'] ?? $formData['jenis_pupuk'] ?? '-'));
+        $templateProcessor->setValue('no_sni', htmlspecialchars($formData['no_sni'] ?? $formData['nomor_sni'] ?? '-'));
+        $templateProcessor->setValue('judul_sni', htmlspecialchars($formData['judul_sni'] ?? '-'));
+
+        $folder = storage_path('app/public/perjanjian/' . $pengajuan->id);
+        if (!file_exists($folder)) {
+            mkdir($folder, 0755, true);
+        }
+
+        $fileName = 'Form_7.2-3_Perjanjian_' . $pengajuan->id . '.docx';
+        $savePath = $folder . DIRECTORY_SEPARATOR . $fileName;
+        $templateProcessor->saveAs($savePath);
+
+        return response()->download($savePath, $fileName);
     }
 
     public function uploadSurvailenDokumen(Request $request, $id)
@@ -410,42 +497,67 @@ class PengajuanController extends Controller
         $draftId = $request->input('draft_id');
         $arrayDataForm = $request->except(['_token', 'is_ajax', 'draft_id']);
         
+        $draft = null;
         if ($draftId) {
-            $pengajuan = Pengajuan::where('id', $draftId)->where('user_id', Auth::id())->first();
-            if ($pengajuan) {
-                $pengajuan->data_form = json_encode($arrayDataForm);
-                $pengajuan->save();
-                return response()->json(['success' => true, 'draft_id' => $pengajuan->id, 'message' => 'Draft berhasil diupdate.']);
+            $draft = Pengajuan::where('id', $draftId)->where('user_id', Auth::id())->first();
+            if ($draft && $draft->status !== 'draft' && $draft->status !== 'perbaikan') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Pengajuan sudah dikirim, tidak dapat menyimpan draft.'
+                ]);
             }
         }
 
-        $pengajuan = new Pengajuan();
-        $pengajuan->user_id = Auth::id() ?? 1;
-        $pengajuan->tahap = $request->tahap ?? '7.2';
-        $pengajuan->jenis_pengajuan = strtolower($request->jenis_sertifikasi) === 'resertifikasi' ? 'resertifikasi' : (strtolower($request->jenis_sertifikasi) === 'survailen' ? 'survailen' : 'sertifikasi');
-        $pengajuan->status = 'draft'; 
-        $pengajuan->data_form = json_encode($arrayDataForm); 
-        $pengajuan->save();
+        $jenis = strtolower($request->jenis_sertifikasi) === 'resertifikasi' ? 'resertifikasi' : (strtolower($request->jenis_sertifikasi) === 'survailen' ? 'survailen' : 'sertifikasi');
 
-        return response()->json(['success' => true, 'draft_id' => $pengajuan->id, 'message' => 'Draft berhasil disimpan.']);
+        if (!$draft) {
+            // Check if there's already an active draft for this type
+            $draft = Pengajuan::where('user_id', Auth::id() ?? 1)
+                ->where('status', 'draft')
+                ->where('jenis_pengajuan', $jenis)
+                ->first();
+
+            if (!$draft) {
+                $draft = new Pengajuan();
+                $draft->user_id = Auth::id() ?? 1;
+                $draft->jenis_pengajuan = $jenis;
+            }
+        }
+
+        $draft->tahap = $request->tahap ?? '7.2';
+        $draft->status = 'draft'; 
+        $draft->data_form = json_encode($arrayDataForm); 
+        $draft->save();
+        $draftId = $draft->id;
+
+        // Jika request AJAX (auto-save atau manual), kembalikan JSON
+        if ($request->is_ajax || $request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success'  => true,
+                'draft_id' => $draftId,
+                'message'  => 'Draft berhasil disimpan.',
+            ]);
+        }
+
+        // Jika manual save (form submit), redirect ke tab Draft
+        return redirect()
+            ->route('client.dashboard')
+            ->with('success', 'Draft permohonan berhasil disimpan.');
     }
 
-    public function createWizard(Request $request, $step = 1)
+    public function destroyDraft($id)
     {
-        $formData = [];
-        $draft = null;
-        return view('pengajuan.wizard.index', compact('step', 'formData', 'draft'));
+        $draft = Pengajuan::where('id', $id)
+                          ->where('user_id', Auth::id())
+                          ->where('status', 'draft')
+                          ->firstOrFail();
+                          
+        $draft->delete();
+        
+        return redirect()->back()->with('success', 'Draft permohonan berhasil dihapus.');
     }
 
-    public function saveWizard(Request $request)
-    {
-        return response()->json(['success' => true]);
-    }
 
-    public function submitWizard(Request $request)
-    {
-        return redirect()->route('aktivitas.index')->with('success', 'Pengajuan berhasil disubmit.');
-    }
 
     public function billing()
     {
@@ -470,13 +582,92 @@ class PengajuanController extends Controller
             $query->where('user_id', Auth::id());
         })->firstOrFail();
 
-        // Simulate upload and status update
-        $invoice->status = 'pending_verification'; // Menunggu konfirmasi TU
-        $invoice->notes = 'Bukti pembayaran telah diunggah dan menunggu verifikasi TU.';
+        if ($request->hasFile('bukti_transfer')) {
+            $file = $request->file('bukti_transfer');
+            $noPermohonan = str_pad($invoice->pengajuan_id, 5, '0', STR_PAD_LEFT);
+            $filename = 'bukti_bayar_billing_' . $invoice->id . '_permohonan_' . $noPermohonan . '.' . $file->getClientOriginalExtension();
+            
+            // Simpan ke disk public secara eksplisit untuk menghindari bug konfigurasi .env di hosting
+            $path = $file->storeAs('bukti_pembayaran', $filename, 'public');
+            
+            // Simpan path relatif ke DB
+            $invoice->file_bukti_bayar = 'bukti_pembayaran/' . $filename;
+        }
+
+        $invoice->status = 'pending_verification'; // Menunggu konfirmasi Administrasi
+        $invoice->notes = 'Bukti pembayaran telah diunggah dan menunggu verifikasi Administrasi.';
         $invoice->save();
 
-        \App\Helpers\NotificationHelper::sendToRole('tatausaha', 'Pembayaran Tagihan', 'Klien telah mengunggah bukti pembayaran untuk invoice #' . $invoice->invoice_number, 'info', $invoice->pengajuan_id);
+        \App\Helpers\NotificationHelper::sendToRole('layanan', 'Pembayaran Tagihan', 'Klien telah mengunggah bukti pembayaran untuk invoice #' . $invoice->invoice_number . '. Tahap selanjutnya: Verifikasi Pembayaran oleh bagian Administrasi/Keuangan.', 'info', $invoice->pengajuan_id);
 
         return redirect()->back()->with('success', 'Bukti pembayaran berhasil diunggah! Menunggu verifikasi.');
+    }
+
+    public function cetakInvoice($id)
+    {
+        $invoice = \App\Models\Invoice::where('id', $id)
+            ->whereHas('pengajuan', function ($query) {
+                $query->where('user_id', Auth::id());
+            })->firstOrFail();
+
+        return view('client.cetak_invoice', compact('invoice'));
+    }
+
+
+
+    public function formTindakanPerbaikan($id)
+    {
+        $pengajuan = Pengajuan::where('id', $id)->where('user_id', Auth::id())->firstOrFail();
+        
+        if ($pengajuan->status !== 'tindakan_perbaikan') {
+            return redirect()->route('aktivitas.show', $id)->with('error', 'Status pengajuan tidak sedang memerlukan tindakan perbaikan.');
+        }
+
+        return view('client.form_tindakan_perbaikan', compact('pengajuan'));
+    }
+
+    public function uploadTindakanPerbaikan(Request $request, $id)
+    {
+        $pengajuan = Pengajuan::where('id', $id)->where('user_id', Auth::id())->firstOrFail();
+
+        $request->validate([
+            'file_tindakan_perbaikan' => 'required|file|mimes:pdf,doc,docx,zip,rar|max:10240',
+            'keterangan_perbaikan' => 'required|string'
+        ]);
+
+        if ($request->hasFile('file_tindakan_perbaikan')) {
+            $file = $request->file('file_tindakan_perbaikan');
+            $noPermohonan = str_pad($pengajuan->id, 5, '0', STR_PAD_LEFT);
+            $filename = 'lks_tindakan_perbaikan_permohonan_' . $noPermohonan . '.' . $file->getClientOriginalExtension();
+            
+            $folder = 'public/tindakan_perbaikan/' . $pengajuan->id;
+            $file->storeAs($folder, $filename);
+
+            $formData = is_array($pengajuan->data_form) ? $pengajuan->data_form : (json_decode($pengajuan->data_form, true) ?? []);
+            $formData['file_tindakan_perbaikan'] = $pengajuan->id . '/' . $filename;
+            $formData['keterangan_perbaikan'] = $request->keterangan_perbaikan;
+            
+            $pengajuan->data_form = $formData;
+            $pengajuan->transitionTo(
+                'proses_audit', 
+                'Klien telah mengunggah Laporan Tindakan Perbaikan: ' . $request->keterangan_perbaikan, 
+                Auth::id()
+            );
+            $pengajuan->save();
+
+            \App\Helpers\NotificationHelper::sendToRole('layanan', 'Tindakan Perbaikan Diunggah', 'Klien telah mengunggah Laporan Tindakan Perbaikan untuk pengajuan #' . $pengajuan->id, 'info', $pengajuan->id);
+            
+            return redirect()->route('aktivitas.show', $id)->with('success', 'Bukti Tindakan Perbaikan berhasil diunggah dan sedang dievaluasi oleh Tim Audit.');
+        }
+
+        return back()->with('error', 'Gagal mengunggah file.');
+    }
+
+    /**
+     * Halaman Customer Service untuk Client
+     */
+    public function customerService()
+    {
+        return view('client.customer_service');
     }
 }

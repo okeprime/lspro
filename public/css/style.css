@@ -115,7 +115,7 @@ body { font-family: 'Poppins', sans-serif; background-color: #f1f5f9; overflow-x
 .top-navbar {
     position: fixed; top: 0; left: 0; right: 0; height: 65px;
     background: white; display: flex; justify-content: space-between; align-items: center;
-    padding: 0 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); z-index: 1000;
+    padding: 0 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); z-index: 1030;
 }
 #menu-toggle { font-size: 22px; color: #064e3b; cursor: pointer; padding: 5px; }
 
@@ -158,3 +158,47 @@ body { font-family: 'Poppins', sans-serif; background-color: #f1f5f9; overflow-x
 .nav-submenu a:hover{
     color:#fff !important;
 }
+
+/* RESPONSIVE TABLES UNTUK SEMUA HALAMAN */
+@media (max-width: 768px) {
+    .table-responsive { border: 0; overflow-x: hidden; }
+    .table-responsive .table thead { display: none; }
+    .table-responsive .table tbody tr {
+        display: block;
+        margin-bottom: 15px;
+        background: #fff;
+        border-radius: 12px;
+        padding: 15px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+    }
+    .table-responsive .table tbody td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 0;
+        border-bottom: 1px dashed #e2e8f0;
+        text-align: right;
+        border-top: none;
+        word-break: break-word;
+    }
+    .table-responsive .table tbody td:last-child { border-bottom: 0; }
+    .table-responsive .table tbody td::before {
+        content: attr(data-label);
+        font-weight: 700;
+        color: #64748b;
+        font-size: 13px;
+        text-align: left;
+        margin-right: 15px;
+        flex-shrink: 0;
+        max-width: 45%;
+    }
+    .table-responsive .table tbody td.ps-4, .table-responsive .table tbody td.pe-4 { padding-left: 0 !important; padding-right: 0 !important; }
+    .dropdown-menu { position: absolute !important; } /* Fix dropdown in block table */
+}
+
+
+.sidebar i.ph { font-size: 20px; vertical-align: middle; margin-right: 12px; font-weight: normal; }
+.sidebar .nav-link-dropdown i.ph { font-size: 20px; }
+.dropdown-menu-sidebar a i.ph { font-size: 16px; margin-right: 10px; }
+.sidebar a:hover i.ph, .sidebar a.active i.ph { font-weight: bold; color: #6ee7b7; transition: all 0.2s; }

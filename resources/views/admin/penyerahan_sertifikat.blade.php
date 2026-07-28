@@ -6,7 +6,7 @@
     <div class="mb-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
         <div>
             <h2 style="color: #1e293b; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 4px;">Penyerahan Sertifikat</h2>
-            <p class="text-muted small mb-0">Kelola dan kirim notifikasi penerbitan SPPT SNI kepada klien yang lulus sertifikasi.</p>
+            <p class="text-muted small mb-0">Kelola dan kirim notifikasi penerbitan Sertifikat Kesesuaian SNI kepada klien yang lulus sertifikasi.</p>
         </div>
     </div>
 
@@ -40,12 +40,16 @@
                             <tr>
                                 <td class="ps-4 fw-bold" style="color: #475569;">#{{ str_pad($item->id, 5, '0', STR_PAD_LEFT) }}</td>
                                 <td>
-                                    <div class="fw-bold" style="color: #1e293b;">{{ $item->user->name }}</div>
-                                    <div class="text-muted small">{{ $item->user->email }}</div>
+                                    @php
+                                        $df = is_array($item->data_form) ? $item->data_form : (json_decode($item->data_form, true) ?? []);
+                                        $merek = $df['merek_produk'] ?? ($df['merek'] ?? 'Tanpa Merek');
+                                    @endphp
+                                    <div class="fw-bold" style="color: #1e293b;">{{ $merek }}</div>
+                                    <div class="text-muted small">{{ $item->user->nama_perusahaan ?? $item->user->nama_penghubung ?? $item->user->name ?? 'Klien' }}</div>
                                 </td>
                                 <td>
                                     <span class="badge bg-light text-dark border px-2 py-1">
-                                        {{ json_decode($item->data_form)->jenis_sertifikasi ?? 'Produk SNI' }}
+                                        {{ $df['jenis_sertifikasi'] ?? 'Produk SNI' }}
                                     </span>
                                 </td>
                                 <td style="font-size: 13px; color: #475569;">{{ $item->updated_at->translatedFormat('d F Y') }}</td>
@@ -62,7 +66,7 @@
                                                     <h5 class="modal-title fw-bold" style="color: #1e293b;">Kirim Notifikasi Sertifikat</h5>
                                                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                                 </div>
-                                                <form action="{{ route('admin.penyerahan_sertifikat.kirim', $item->id) }}" method="POST">
+                                                <form action="{{ route('admin.penyerahan_sertifikat.kirim', $item->id) }}" method="POST" enctype="multipart/form-data">
                                                     @csrf
                                                     <div class="modal-body">
                                                         <p class="text-muted small mb-3">Kirim notifikasi penerbitan sertifikat ke sistem dan email klien.</p>
@@ -75,10 +79,15 @@
                                                             <label class="form-label fw-bold text-secondary" style="font-size: 12px;">Pesan Email & Notifikasi</label>
                                                             <textarea name="pesan" class="form-control" rows="4" style="border-radius: 10px;" required>Yth. {{ $item->user->name }},
 
-Selamat! Sertifikat SPPT SNI untuk produk pengajuan #{{ str_pad($item->id, 5, '0', STR_PAD_LEFT) }} telah diterbitkan oleh LSPro BRMP SDLP. 
+Selamat! Sertifikat Sertifikat Kesesuaian SNI untuk produk pengajuan #{{ str_pad($item->id, 5, '0', STR_PAD_LEFT) }} telah diterbitkan oleh LSPro BRMP SDLP. 
 
-Silakan ambil dokumen fisik di kantor atau hubungi layanan kami.
+Silakan unduh dokumen sertifikat Anda di sistem.
 Terima kasih.</textarea>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label fw-bold text-secondary" style="font-size: 12px;">Unggah Sertifikat Kesesuaian (Opsional)</label>
+                                                            <input type="file" name="file_sertifikat" class="form-control" style="border-radius: 10px;" accept=".pdf,.jpg,.jpeg,.png">
+                                                            <small class="text-muted" style="font-size: 11px;">Unggah dokumen sertifikat agar Klien dapat mengunduhnya secara mandiri.</small>
                                                         </div>
                                                     </div>
                                                     <div class="modal-footer border-top-0 pt-0">
@@ -108,3 +117,4 @@ Terima kasih.</textarea>
     </div>
 </div>
 @endsection
+

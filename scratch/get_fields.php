@@ -1,0 +1,1 @@
+<?php require 'vendor/autoload.php'; $app = require_once 'bootstrap/app.php'; $kernel = $app->make(Illuminate\Contracts\Console\Kernel::class); $kernel->bootstrap(); $fields = DB::table('form_fields')->get(['name', 'label', 'type']); foreach($fields as $f) echo $f->name . ' : ' . $f->label . ' (' . $f->type . ')' . PHP_EOL;

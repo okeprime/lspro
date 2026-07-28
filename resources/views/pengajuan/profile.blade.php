@@ -324,14 +324,14 @@
                         <label for="jabatan">Jabatan</label>
                         <input type="text" id="jabatan" name="jabatan"
                                value="{{ old('jabatan', $user->jabatan) }}"
-                               placeholder="Contoh: Kepala Bidang / Staf TU">
+                               placeholder="Contoh: Kepala Bidang / Staf Administrasi">
                     </div>
 
                     <div class="profile-field">
                         <label for="unit_kerja">Unit Kerja / Bidang</label>
                         <input type="text" id="unit_kerja" name="unit_kerja"
                                value="{{ old('unit_kerja', $user->unit_kerja) }}"
-                               placeholder="Contoh: Tata Usaha, Seksi Layanan, BRMP SDLP">
+                               placeholder="Contoh: Administrasi, Seksi Layanan, BRMP SDLP">
                     </div>
 
                     <div class="profile-field span-2">

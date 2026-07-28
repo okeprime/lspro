@@ -133,7 +133,7 @@
             </div>
         </div>
         <div class="stat-card card-bayar">
-            <div class="stat-icon"><i class="fa-solid fa-file-invoice-dollar"></i></div>
+            <div class="stat-icon"><i class="ph-fill ph-receipt"></i></div>
             <div>
                 <div class="stat-value">{{ $menungguPembayaran }}</div>
                 <div class="stat-label">Menunggu Pembayaran</div>
@@ -151,7 +151,7 @@
     <!-- Recent Activities -->
     <div class="recent-section">
         <div class="recent-header">
-            <h2 class="recent-title"><i class="fa-solid fa-clock-rotate-left text-muted me-2"></i> Pengajuan Terbaru</h2>
+            <h2 class="recent-title"><i class="ph-fill ph-clock-counter-clockwise text-muted me-2"></i> Pengajuan Terbaru</h2>
             <a href="{{ route('aktivitas.index') }}" class="btn btn-sm btn-outline-success rounded-pill fw-semibold px-3">Lihat Semua</a>
         </div>
         <div class="table-responsive">

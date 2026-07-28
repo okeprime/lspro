@@ -51,42 +51,9 @@
                                     </a>
                                 </td>
                                 <td class="text-end pe-4">
-                                    <button type="button" class="btn btn-sm btn-primary px-3 fw-bold" style="border-radius: 8px;" data-bs-toggle="modal" data-bs-target="#modalAudit{{ $item->id }}">
-                                        Proses Audit <i class="fa-solid fa-chevron-right ms-1" style="font-size: 10px;"></i>
-                                    </button>
-
-                                    <!-- Modal Audit -->
-                                    <div class="modal fade" id="modalAudit{{ $item->id }}" tabindex="-1" aria-hidden="true" style="text-align: left;">
-                                        <div class="modal-dialog">
-                                            <div class="modal-content" style="border-radius: 16px; border: none;">
-                                                <div class="modal-header border-bottom-0 pb-0">
-                                                    <h5 class="modal-title fw-bold" style="color: #1e293b;">Proses Audit #{{ $item->id }}</h5>
-                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                                </div>
-                                                <form action="{{ route('admin.audit_berkas.proses', $item->id) }}" method="POST">
-                                                    @csrf
-                                                    <div class="modal-body">
-                                                        <div class="mb-3">
-                                                            <label class="form-label fw-bold text-secondary" style="font-size: 12px;">Keputusan Audit</label>
-                                                            <select name="status" class="form-select shadow-none" required style="border-radius: 10px;">
-                                                                <option value="">-- Pilih Keputusan --</option>
-                                                                <option value="keputusan">Disetujui (Lanjut ke Keputusan)</option>
-                                                                <option value="perbaikan">Dikembalikan (Perbaikan Klien)</option>
-                                                            </select>
-                                                        </div>
-                                                        <div class="mb-3">
-                                                            <label class="form-label fw-bold text-secondary" style="font-size: 12px;">Catatan / Temuan Audit</label>
-                                                            <textarea name="catatan_status" class="form-control shadow-none" rows="4" style="border-radius: 10px;" required placeholder="Tuliskan catatan hasil pemeriksaan atau perbaikan..."></textarea>
-                                                        </div>
-                                                    </div>
-                                                    <div class="modal-footer border-top-0 pt-0">
-                                                        <button type="button" class="btn btn-light" data-bs-dismiss="modal" style="border-radius: 8px; font-weight: 600;">Batal</button>
-                                                        <button type="submit" class="btn btn-primary" style="border-radius: 8px; font-weight: 600;">Simpan Hasil</button>
-                                                    </div>
-                                                </form>
-                                            </div>
-                                        </div>
-                                    </div>
+                                    <a href="{{ route('admin.ceklis_kelengkapan', $item->id) }}" class="btn btn-sm btn-primary px-3 fw-bold" style="border-radius: 8px;">
+                                        <i class="fa-solid fa-file-signature me-1"></i> Proses Audit Lapangan
+                                    </a>
                                 </td>
                             </tr>
                         @empty

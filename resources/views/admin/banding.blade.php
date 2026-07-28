@@ -55,7 +55,7 @@
                                 <td>
                                     @if($pb)
                                         <a href="{{ route('aktivitas.show', $pb) }}" class="fw-semibold text-decoration-none text-teal">
-                                            #{{ str_pad($pb->id, 5, '0', STR_PAD_LEFT) }} - {{ $pdf['merek'] ?? 'Tanpa Merek' }}
+                                            #{{ $pb->nomor_registrasi ?? str_pad($pb->id, 5, '0', STR_PAD_LEFT) }} - {{ $pdf['merek_produk'] ?? ($pdf['merek'] ?? 'Tanpa Merek') }}
                                         </a>
                                     @else
                                         <span class="text-muted">-</span>
@@ -75,7 +75,7 @@
                                 </td>
                                 <td>
                                     @if($b->file_lampiran)
-                                        <a href="{{ asset('storage/banding_lampiran/' . $b->file_lampiran) }}" target="_blank" class="btn btn-sm btn-outline-secondary py-1 px-2" style="border-radius: 6px; font-size: 11px;">
+                                        <a href="{{ url('/unduh/banding_lampiran/' . $b->file_lampiran) }}" target="_blank" class="btn btn-sm btn-outline-secondary py-1 px-2" style="border-radius: 6px; font-size: 11px;">
                                             <i class="fa-solid fa-file-arrow-down"></i> Unduh
                                         </a>
                                     @else

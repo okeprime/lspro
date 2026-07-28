@@ -24,6 +24,10 @@ class Invoice extends Model
         'payment_method',
         'notes',
         'status',
+        'jenis_tagihan',
+        'file_invoice',
+        'file_bukti_bayar',
+        'file_kwitansi',
     ];
 
     protected $casts = [

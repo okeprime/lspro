@@ -1,13 +1,13 @@
 @extends('layouts.app')
-@section('title', 'Panel Tata Usaha - LS Pro')
+@section('title', 'Panel Administrasi - LS Pro')
 
 @section('content')
 <div class="container-fluid py-3 px-3 px-md-4">
     
     <div class="mb-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
         <div>
-            <h2 style="color: #1e293b; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 4px;">Panel Kerja Tata Usaha</h2>
-            <p class="text-muted small mb-0">Verifikasi berkas persyaratan permohonan sertifikasi (Form 7.2-4).</p>
+            <h2 style="color: #1e293b; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 4px;">{{ $title ?? 'Panel Kerja Administrasi' }}</h2>
+            <p class="text-muted small mb-0">{{ $subtitle ?? 'Verifikasi berkas persyaratan permohonan sertifikasi.' }}</p>
         </div>
     </div>
 
@@ -48,8 +48,12 @@
                                     #{{ str_pad($item->id, 5, '0', STR_PAD_LEFT) }}
                                 </td>
                                 <td>
-                                    <div class="fw-bold" style="color: #1e293b;">{{ $item->user->nama_perusahaan ?? $item->user->nama_penghubung ?? explode('@', $item->user->email)[0] ?? 'Klien' }}</div>
-                                    <div class="text-muted small" style="font-size: 11px;">{{ $item->user->email ?? '-' }}</div>
+                                    @php
+                                        $df = is_array($item->data_form) ? $item->data_form : (json_decode($item->data_form, true) ?? []);
+                                        $merek = $df['merek_produk'] ?? ($df['merek'] ?? 'Tanpa Merek');
+                                    @endphp
+                                    <div class="fw-bold" style="color: #1e293b;">{{ $merek }}</div>
+                                    <div class="text-muted small" style="font-size: 11px;">{{ $item->user->nama_perusahaan ?? $item->user->nama_penghubung ?? explode('@', $item->user->email)[0] ?? 'Klien' }}</div>
                                 </td>
                                 <td style="color: #475569; font-size: 13px;">
                                     <div>{{ $item->created_at->translatedFormat('d M Y') }}</div>
@@ -85,7 +89,12 @@
                                 </td>
                                 <td class="text-end pe-4">
                                     <div class="d-flex justify-content-end gap-2">
-                                        @if(in_array($item->status, ['diajukan', 'perbaikan']))
+                                        @php
+                                            $isPerbaikanAwal = $item->status === 'perbaikan' && empty($item->nama_tu);
+                                            $isPerbaikanKelengkapan = $item->status === 'perbaikan' && !empty($item->nama_tu);
+                                        @endphp
+                                        
+                                        @if($item->status === 'diajukan' || $isPerbaikanAwal)
                                             <button type="button" class="btn btn-sm btn-primary px-3 d-inline-flex align-items-center gap-1" style="border-radius: 8px; font-size: 12px; font-weight: 600;" data-bs-toggle="modal" data-bs-target="#modalCekAwal{{ $item->id }}">
                                                 <i class="fa-solid fa-eye"></i> Pengecekan Awal
                                             </button>
@@ -93,13 +102,21 @@
                                             <span class="btn btn-sm btn-light px-3 d-inline-flex align-items-center gap-1 text-muted" style="border-radius: 8px; font-size: 12px; font-weight: 600; border: 1px dashed #cbd5e1;">
                                                 <i class="fa-solid fa-clock"></i> Menunggu Lampiran Klien
                                             </span>
+                                        @elseif($isPerbaikanKelengkapan)
+                                            <a href="{{ route('admin.ceklis', $item->id) }}" class="btn btn-sm btn-outline-danger px-3 d-inline-flex align-items-center gap-1" style="border-radius: 8px; font-size: 12px; font-weight: 600;">
+                                                <i class="fa-solid fa-rotate-left"></i> Menunggu Revisi Klien (Buka Ceklis)
+                                            </a>
+                                        @elseif($item->status === 'billing_lab')
+                                            <button type="button" class="btn btn-sm btn-warning px-3 d-inline-flex align-items-center gap-1 text-dark" style="border-radius: 8px; font-size: 12px; font-weight: 600;" data-bs-toggle="modal" data-bs-target="#modalTagihanLab{{ $item->id }}">
+                                                <i class="fa-solid fa-file-invoice-dollar"></i> Tagihan Lab
+                                            </button>
                                         @else
                                             <a href="{{ route('admin.ceklis', $item->id) }}" class="btn btn-sm btn-success px-3 d-inline-flex align-items-center gap-1" style="border-radius: 8px; font-size: 12px; font-weight: 600; background-color: #16a34a; border-color: #16a34a;">
                                                 <i class="fa-solid fa-clipboard-check"></i> Form 7.2-4
                                             </a>
                                         @endif
 
-                                        @if(in_array($item->status, ['diajukan', 'perbaikan']))
+                                        @if($item->status === 'diajukan' || $isPerbaikanAwal)
                                             <!-- Modal Pengecekan Awal -->
                                             <div class="modal fade" id="modalCekAwal{{ $item->id }}" tabindex="-1" aria-hidden="true" style="text-align: left;">
                                                 <div class="modal-dialog modal-lg">
@@ -117,15 +134,26 @@
                                                                 
                                                                 <div class="border rounded-3 p-3 mb-3 bg-light">
                                                                     <h6 class="fw-bold mb-3 text-secondary" style="font-size: 13px; letter-spacing: 0.5px;">DATA PERMOHONAN:</h6>
-                                                                    <div class="row gy-2" style="font-size: 13px;">
+                                                                    <div class="row gy-3" style="font-size: 13px; max-height: 400px; overflow-y: auto; overflow-x: hidden;">
                                                                         @php
                                                                             $formData = is_string($item->data_form) ? json_decode($item->data_form, true) : (array)($item->data_form ?? []);
                                                                         @endphp
                                                                         @foreach($formData as $key => $val)
+                                                                            @if($key === 'kop_surat')
+                                                                                @continue
+                                                                            @endif
                                                                             @if(is_string($val) && !empty($val) && !str_starts_with($val, 'lampiran/'))
                                                                                 <div class="col-md-6">
-                                                                                    <div class="text-muted small text-capitalize">{{ str_replace('_', ' ', $key) }}</div>
-                                                                                    <div class="fw-bold text-dark">{{ $val }}</div>
+                                                                                    <div class="text-muted small text-capitalize mb-1">{{ str_replace('_', ' ', $key) }}</div>
+                                                                                    @if(in_array($key, ['sketsa_logo', 'foto_depan', 'foto_belakang', 'foto_kanan', 'foto_kiri']) || str_starts_with($val, 'permohonan/'))
+                                                                                        <div class="mt-1">
+                                                                                            <a href="{{ url('/unduh/' . $val) }}" target="_blank">
+                                                                                                <img src="{{ url('/unduh/' . $val) }}" alt="{{ $key }}" class="img-fluid rounded border shadow-sm" style="max-height: 120px; object-fit: cover;">
+                                                                                            </a>
+                                                                                        </div>
+                                                                                    @else
+                                                                                        <div class="fw-bold text-dark">{{ $val }}</div>
+                                                                                    @endif
                                                                                 </div>
                                                                             @endif
                                                                         @endforeach
@@ -186,6 +214,46 @@
                                                             <div class="modal-footer border-top-0 pt-0">
                                                                 <button type="button" class="btn btn-light" data-bs-dismiss="modal" style="border-radius: 8px; font-weight: 600;">Batal</button>
                                                                 <button type="submit" class="btn btn-primary" style="border-radius: 8px; font-weight: 600;">Proses Berkas</button>
+                                                            </div>
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        @endif
+                                        
+                                        @if($item->status === 'billing_3')
+                                            <!-- Modal Tagihan Lab -->
+                                            <div class="modal fade" id="modalTagihanLab{{ $item->id }}" tabindex="-1" aria-hidden="true" style="text-align: left;">
+                                                <div class="modal-dialog">
+                                                    <div class="modal-content" style="border-radius: 16px; border: none;">
+                                                        <div class="modal-header border-bottom-0 pb-0">
+                                                            <h5 class="modal-title fw-bold" style="color: #1e293b;">Terbitkan Tagihan Uji Lab #{{ $item->id }}</h5>
+                                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                        </div>
+                                                        <form action="{{ route('admin.pengajuan.terbitkan_billing_lab', $item->id) }}" method="POST">
+                                                            @csrf
+                                                            <div class="modal-body">
+                                                                <div class="alert alert-info py-2" style="font-size: 13px; border-radius: 10px;">
+                                                                    Klien telah mengunggah LHP. Silakan terbitkan tagihan uji laboratorium agar klien dapat membayar.
+                                                                </div>
+                                                                <div class="mb-3">
+                                                                    <label class="form-label fw-bold text-secondary" style="font-size: 12px;">Nominal Tagihan (Rp)</label>
+                                                                    <input type="number" name="nominal_lab" class="form-control" required style="border-radius: 10px;" min="1" placeholder="Misal: 1500000">
+                                                                </div>
+                                                                @if($item->file_lhp)
+                                                                    <div class="mb-3">
+                                                                        <label class="form-label fw-bold text-secondary" style="font-size: 12px;">File LHP dari Klien</label>
+                                                                        <div>
+                                                                            <a href="{{ url('/unduh/' . $item->file_lhp) }}" target="_blank" class="btn btn-sm btn-outline-info">
+                                                                                <i class="fa-solid fa-file-pdf"></i> Lihat LHP
+                                                                            </a>
+                                                                        </div>
+                                                                    </div>
+                                                                @endif
+                                                            </div>
+                                                            <div class="modal-footer border-top-0 pt-0">
+                                                                <button type="button" class="btn btn-light" data-bs-dismiss="modal" style="border-radius: 8px; font-weight: 600;">Batal</button>
+                                                                <button type="submit" class="btn btn-warning text-dark" style="border-radius: 8px; font-weight: 600;">Terbitkan Tagihan</button>
                                                             </div>
                                                         </form>
                                                     </div>

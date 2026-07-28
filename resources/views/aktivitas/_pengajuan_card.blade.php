@@ -19,7 +19,11 @@
         <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
             <div>
                 <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
-                    <span class="badge bg-light text-dark border" style="font-family: monospace; font-size: 11px;">#{{ str_pad($item->id, 5, '0', STR_PAD_LEFT) }}</span>
+                    @if($item->status === 'draft')
+                        <span class="badge bg-light text-secondary border position-relative z-3" style="font-family: monospace; font-size: 11px; border-style: dashed !important;">#DRAFT</span>
+                    @else
+                        <span class="badge bg-light text-dark border position-relative z-3" style="font-family: monospace; font-size: 11px;">#{{ $item->nomor_registrasi ?? str_pad($item->id, 5, '0', STR_PAD_LEFT) }}</span>
+                    @endif
                     <span class="badge" style="background: #e0f2fe; color: #0369a1; font-size: 11px;">{{ ucfirst($item->jenis_pengajuan ?? 'sertifikasi') }}</span>
                     @if($item->jenis_sertifikasi)
                         <span class="badge" style="background: #f3f4f6; color: #374151; font-size: 11px;">{{ $item->jenis_sertifikasi }}</span>
@@ -39,7 +43,9 @@
                     @endif
                 </div>
                 <h5 class="fw-bold mb-1" style="color: #0f172a;">
-                    {{ $dataForm->merek_produk ?? $dataForm->merek ?? 'Tanpa Merek' }}
+                    <a href="{{ route('aktivitas.show', $item) }}" class="text-decoration-none text-dark stretched-link">
+                        {{ $dataForm->merek_produk ?? $dataForm->merek ?? 'Tanpa Merek' }}
+                    </a>
                 </h5>
                 <p class="text-muted mb-0" style="font-size: 13px;">
                     {{ $dataForm->nama_produk ?? $dataForm->nama_pupuk ?? 'Pupuk' }}
@@ -59,7 +65,7 @@
         </div>
 
         {{-- STEPPER --}}
-        <div class="lspro-stepper-wrap mb-4">
+        <div class="lspro-stepper-wrap mb-4 position-relative z-3">
             <div class="lspro-stepper">
                 @foreach($steps as $number => $step)
                     @php
@@ -96,7 +102,7 @@
                 <div class="d-flex align-items-start gap-3">
                     <i class="fa-solid fa-clipboard-list" style="font-size: 20px; color: #d97706; margin-top: 2px; flex-shrink: 0;"></i>
                     <div>
-                        <div class="fw-bold mb-1" style="font-size: 13px;">Catatan TU – Perbaikan Diperlukan</div>
+                        <div class="fw-bold mb-1" style="font-size: 13px;">Catatan Administrasi – Perbaikan Diperlukan</div>
                         <p class="mb-0" style="font-size: 13px; line-height: 1.6;">{{ $item->catatan }}</p>
                     </div>
                 </div>
@@ -108,20 +114,36 @@
         @endif
 
         {{-- Action Buttons --}}
-        <div class="d-flex flex-wrap align-items-center gap-2">
-            @if($item->file_permohonan && in_array($normalizedStatus, ['menunggu_ttd', 'billing', 'proses_evaluasi', 'proses_audit', 'keputusan', 'selesai']))
-                <a href="{{ route('pengajuan.download', $item->id) }}"
+        <div class="d-flex flex-wrap align-items-center gap-2 position-relative z-3">
+            @if($item->file_permohonan)
+                <a href="{{ url('/unduh/permohonan/' . $item->file_permohonan) }}" target="_blank"
                    class="btn btn-sm btn-outline-primary fw-semibold" style="border-radius: 8px; font-size: 13px;">
-                    <i class="fa-solid fa-file-arrow-down me-1"></i> Unduh Form 7.2-1
+                    <i class="fa-solid fa-file-word me-1"></i> Unduh Form Pengajuan
                 </a>
             @endif
 
-            @if(in_array($normalizedStatus, ['menunggu_ttd', 'billing', 'proses_evaluasi', 'proses_audit', 'keputusan', 'selesai']))
-                <a href="{{ route('pengajuan.download724', $item->id) }}"
-                   class="btn btn-sm btn-outline-danger fw-semibold" style="border-radius: 8px; font-size: 13px;">
-                    <i class="fa-solid fa-file-arrow-down me-1"></i> Unduh Form 7.2-4
+            @if(in_array($normalizedStatus, ['perjanjian_lampiran']))
+                <a href="{{ route('pengajuan.perjanjian.cetak', $item->id) }}" target="_blank"
+                   class="btn btn-sm btn-outline-success fw-semibold" style="border-radius: 8px; font-size: 13px;">
+                    <i class="fa-solid fa-print me-1"></i> Cetak Perjanjian
                 </a>
             @endif
+
+            @if($normalizedStatus === 'selesai')
+                <a href="{{ route('sertifikat.cetak', $item->id) }}" target="_blank"
+                   class="btn btn-sm btn-success fw-semibold text-white" style="border-radius: 8px; font-size: 13px;">
+                    <i class="fa-solid fa-award me-1"></i> Cetak Sertifikat
+                </a>
+            @endif
+
+            @if($normalizedStatus === 'perjanjian_lampiran')
+                <a href="{{ route('pengajuan.lampiran', $item->id) }}"
+                   class="btn btn-sm btn-primary fw-semibold position-relative z-3" style="border-radius: 8px; font-size: 13px;">
+                    <i class="fa-solid fa-pen-to-square me-1"></i> Isi Form Perjanjian & Lampiran
+                </a>
+            @endif
+
+
 
             @if(in_array($normalizedStatus, ['menunggu_ttd'], true))
                 <form action="{{ route('pengajuan.upload_permohonan', $item->id) }}"
@@ -129,15 +151,11 @@
                       enctype="multipart/form-data"
                       class="d-flex flex-column gap-2 mt-2 p-3 bg-light rounded border w-100">
                     @csrf
-                    <div class="fw-bold" style="font-size: 13px;">Upload Dokumen Bertanda Tangan & Meterai</div>
+                    <div class="fw-bold" style="font-size: 13px;">Upload Surat Permohonan (Kop Surat & Tanda Tangan)</div>
                     <div class="row g-2">
-                        <div class="col-md-6">
-                            <label class="form-label small mb-1 text-muted">Upload TTD Form 7.2-1 (PDF)</label>
+                        <div class="col-md-12">
+                            <label class="form-label small mb-1 text-muted">Upload PDF Surat Permohonan</label>
                             <input type="file" name="file_permohonan_ttd" class="form-control form-control-sm" accept=".pdf" required style="border-radius: 8px; font-size: 12px;">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label small mb-1 text-muted">Upload TTD Form 7.2-4 (PDF)</label>
-                            <input type="file" name="file_ceklis_ttd" class="form-control form-control-sm" accept=".pdf" required style="border-radius: 8px; font-size: 12px;">
                         </div>
                     </div>
                     <button type="submit" class="btn btn-sm fw-semibold w-100 mt-1" style="border-radius: 8px; font-size: 13px; background: {{ $isCorrection ? '#f59e0b' : '#16a34a' }}; color: white; border: none;">
@@ -154,16 +172,24 @@
             @endif
 
             @if(in_array($normalizedStatus, ['draft', 'perbaikan'], true) || $item->is_draft)
-                <a href="{{ route('pengajuan.create', ['draft_id' => $item->id]) }}"
-                   class="btn btn-sm fw-semibold" style="background: #e2e8f0; color: #475569; border-radius: 8px; font-size: 13px;">
-                    <i class="fa-solid fa-pen-to-square me-1"></i> {{ $normalizedStatus === 'perbaikan' ? 'Revisi Form Pengajuan' : 'Lanjutkan Draft' }}
-                </a>
+                <div class="d-flex align-items-center gap-2">
+                    <a href="{{ route('pengajuan.create', ['draft_id' => $item->id]) }}"
+                       class="btn btn-sm fw-semibold" style="background: #e2e8f0; color: #475569; border-radius: 8px; font-size: 13px;">
+                        <i class="fa-solid fa-pen-to-square me-1"></i> {{ $normalizedStatus === 'perbaikan' ? 'Revisi Form Pengajuan' : 'Lanjutkan Draft' }}
+                    </a>
+                    
+                    @if($normalizedStatus === 'draft' || $item->is_draft)
+                        <form action="{{ route('pengajuan.destroy_draft', $item->id) }}" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin menghapus draft ini?');">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="btn btn-sm btn-outline-danger fw-semibold" style="border-radius: 8px; font-size: 13px;" title="Hapus Draft">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </form>
+                    @endif
+                </div>
             @endif
 
-            <a href="{{ route('aktivitas.show', $item) }}"
-               class="btn btn-sm btn-light border fw-semibold ms-auto" style="border-radius: 8px; font-size: 13px;">
-                <i class="fa-solid fa-timeline me-1"></i> Lihat Detail Alur
-            </a>
         </div>
     </div>
 </article>

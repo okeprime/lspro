@@ -70,7 +70,7 @@
         @include('aktivitas._empty_state', [
             'icon' => 'fa-rotate',
             'title' => 'Belum ada pengajuan resertifikasi.',
-            'desc' => 'Resertifikasi dilakukan untuk memperpanjang sertifikat SPPT SNI yang sudah habis masa berlakunya.',
+            'desc' => 'Resertifikasi dilakukan untuk memperpanjang sertifikat Sertifikat Kesesuaian SNI yang sudah habis masa berlakunya.',
             'link' => route('pengajuan.resertifikasi'),
             'linkLabel' => 'Ajukan Resertifikasi',
             'isInternal' => $isInternal,
@@ -79,3 +79,4 @@
 
 </div>
 @endsection
+

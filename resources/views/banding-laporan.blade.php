@@ -184,7 +184,7 @@
                             $pdf = is_array($p->data_form) ? $p->data_form : (json_decode($p->data_form, true) ?? []);
                         @endphp
                         <option value="{{ $p->id }}" {{ old('pengajuan_id') == $p->id ? 'selected' : '' }}>
-                            #{{ str_pad($p->id, 5, '0', STR_PAD_LEFT) }} – {{ $pdf['merek'] ?? 'Tanpa Merek' }} ({{ ucfirst($p->jenis_pengajuan) }})
+                            #{{ $p->nomor_registrasi ?? str_pad($p->id, 5, '0', STR_PAD_LEFT) }} – {{ $pdf['merek_produk'] ?? ($pdf['merek'] ?? 'Tanpa Merek') }} ({{ ucfirst($p->jenis_pengajuan) }})
                         </option>
                     @endforeach
                 </select>

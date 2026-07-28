@@ -33,4 +33,17 @@ class NotificationController extends Controller
         
         return back()->with('success', 'Notifikasi berhasil dihapus.');
     }
+
+    public function markAllRead(Request $request)
+    {
+        Notification::where('user_id', Auth::id())
+            ->where('is_read', false)
+            ->update(['is_read' => true]);
+
+        if ($request->ajax()) {
+            return response()->json(['success' => true]);
+        }
+        
+        return back();
+    }
 }

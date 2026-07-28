@@ -31,60 +31,50 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <!-- DUMMY DATA 1 -->
-                        <tr>
-                            <td class="ps-4 fw-bold" style="color: #475569;">SMPL-2026-001</td>
-                            <td>
-                                <div class="fw-bold" style="color: #1e293b;">Pupuk Organik Granul</div>
-                                <div class="text-muted" style="font-size: 11px;">Merek: Subur Makmur</div>
-                            </td>
-                            <td>PT Pertanian Nusantara</td>
-                            <td style="font-size: 13px; color: #475569;">10 Jun 2026</td>
-                            <td>
-                                <span class="badge" style="background-color: #fffbeb; color: #b45309; border: 1px solid #fde68a; font-weight: 600; border-radius: 6px;">
-                                    <i class="fa-solid fa-spinner fa-spin me-1"></i> Sedang Diuji
-                                </span>
-                            </td>
-                            <td class="text-end pe-4">
-                                <button class="btn btn-sm btn-light border" style="border-radius: 8px;"><i class="fa-solid fa-eye text-muted"></i></button>
-                            </td>
-                        </tr>
-                        <!-- DUMMY DATA 2 -->
-                        <tr>
-                            <td class="ps-4 fw-bold" style="color: #475569;">SMPL-2026-002</td>
-                            <td>
-                                <div class="fw-bold" style="color: #1e293b;">Pupuk NPK 15-15-15</div>
-                                <div class="text-muted" style="font-size: 11px;">Merek: Tani Jaya Utama</div>
-                            </td>
-                            <td>CV Bumi Hijau</td>
-                            <td style="font-size: 13px; color: #475569;">08 Jun 2026</td>
-                            <td>
-                                <span class="badge" style="background-color: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; font-weight: 600; border-radius: 6px;">
-                                    <i class="fa-solid fa-check me-1"></i> Lulus Uji
-                                </span>
-                            </td>
-                            <td class="text-end pe-4">
-                                <button class="btn btn-sm btn-light border" style="border-radius: 8px;"><i class="fa-solid fa-eye text-muted"></i></button>
-                            </td>
-                        </tr>
-                        <!-- DUMMY DATA 3 -->
-                        <tr>
-                            <td class="ps-4 fw-bold" style="color: #475569;">SMPL-2026-003</td>
-                            <td>
-                                <div class="fw-bold" style="color: #1e293b;">Pupuk Urea Prill</div>
-                                <div class="text-muted" style="font-size: 11px;">Merek: Agro Super</div>
-                            </td>
-                            <td>PT Agro Mandiri</td>
-                            <td style="font-size: 13px; color: #475569;">05 Jun 2026</td>
-                            <td>
-                                <span class="badge" style="background-color: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; font-weight: 600; border-radius: 6px;">
-                                    <i class="fa-solid fa-xmark me-1"></i> Tidak Lulus
-                                </span>
-                            </td>
-                            <td class="text-end pe-4">
-                                <button class="btn btn-sm btn-light border" style="border-radius: 8px;"><i class="fa-solid fa-eye text-muted"></i></button>
-                            </td>
-                        </tr>
+                        @forelse($pengajuans as $item)
+                            @php
+                                $formData = is_string($item->data_form) ? json_decode($item->data_form, true) : ($item->data_form ?? []);
+                                $namaProduk = $formData['nama_produk'] ?? 'Produk Tidak Diketahui';
+                                $merekDagang = $formData['merek_dagang'] ?? '-';
+                                $kodeSampel = 'SMPL-' . date('Y', strtotime($item->created_at)) . '-' . str_pad($item->id, 3, '0', STR_PAD_LEFT);
+                                
+                                $statusUjiText = 'Sedang Diuji';
+                                $statusUjiClass = 'background-color: #fffbeb; color: #b45309; border: 1px solid #fde68a;';
+                                $statusUjiIcon = 'fa-solid fa-spinner fa-spin';
+                                
+                                if ($item->status === 'keputusan') {
+                                    $statusUjiText = 'Lulus Uji';
+                                    $statusUjiClass = 'background-color: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0;';
+                                    $statusUjiIcon = 'fa-solid fa-check';
+                                }
+                            @endphp
+                            <tr>
+                                <td class="ps-4 fw-bold" style="color: #475569;">{{ $kodeSampel }}</td>
+                                <td>
+                                    <div class="fw-bold" style="color: #1e293b;">{{ $namaProduk }}</div>
+                                    <div class="text-muted" style="font-size: 11px;">Merek: {{ $merekDagang }}</div>
+                                </td>
+                                <td>{{ $item->user->name ?? 'Klien' }}</td>
+                                <td style="font-size: 13px; color: #475569;">{{ $item->updated_at->translatedFormat('d M Y') }}</td>
+                                <td>
+                                    <span class="badge" style="{{ $statusUjiClass }} font-weight: 600; border-radius: 6px;">
+                                        <i class="{{ $statusUjiIcon }} me-1"></i> {{ $statusUjiText }}
+                                    </span>
+                                </td>
+                                <td class="text-end pe-4">
+                                    <button class="btn btn-sm btn-light border" style="border-radius: 8px;"><i class="fa-solid fa-eye text-muted"></i></button>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="6" class="text-center py-5 text-muted">
+                                    <div class="py-3">
+                                        <i class="fa-solid fa-vial-circle-check d-block mb-2 text-secondary fs-2"></i>
+                                        <span style="font-size: 14px; font-weight: 500;">Belum ada data sampel yang diproses.</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        @endforelse
                     </tbody>
                 </table>
             </div>

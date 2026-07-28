@@ -1,4 +1,5 @@
 @php
+    $b = $item ?? $b;
     $pb = $b->pengajuan;
     $pdf = $pb ? (is_array($pb->data_form) ? $pb->data_form : (json_decode($pb->data_form, true) ?? [])) : [];
     $badgeColor = $b->jenis === 'banding' ? '#dc2626' : ($b->jenis === 'keluhan' ? '#d97706' : '#6b7280');
@@ -30,7 +31,7 @@
                     <div style="font-size: 13px; color: #64748b;">
                         Terkait pengajuan:
                         <a href="{{ route('aktivitas.show', $pb) }}" class="fw-semibold text-decoration-none" style="color: #0f766e;">
-                            #{{ str_pad($pb->id, 5, '0', STR_PAD_LEFT) }} – {{ $pdf['merek'] ?? 'Tanpa Merek' }}
+                            #{{ $pb->nomor_registrasi ?? str_pad($pb->id, 5, '0', STR_PAD_LEFT) }} – {{ $pdf['merek_produk'] ?? ($pdf['merek'] ?? 'Tanpa Merek') }}
                         </a>
                     </div>
                 @endif
@@ -45,7 +46,7 @@
 
             <div class="d-flex flex-column align-items-end gap-2" style="flex-shrink: 0;">
                 @if($b->file_lampiran)
-                    <a href="{{ asset('storage/banding_lampiran/' . $b->file_lampiran) }}" target="_blank"
+                    <a href="{{ url('/unduh/banding_lampiran/' . $b->file_lampiran) }}" target="_blank"
                        class="btn btn-sm btn-outline-secondary" style="border-radius: 8px; font-size: 12px;">
                         <i class="fa-solid fa-file-arrow-down me-1"></i> Lampiran
                     </a>

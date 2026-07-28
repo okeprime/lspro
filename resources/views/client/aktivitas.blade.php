@@ -39,7 +39,7 @@
                             <th class="py-3 text-dark text-uppercase fw-bold" style="font-size: 12px; width: 15%;">TANGGAL MASUK</th>
                             <th class="py-3 text-dark text-uppercase fw-bold" style="font-size: 12px; width: 15%;">HASIL PERMOHONAN</th>
                             <th class="py-3 text-center text-dark text-uppercase fw-bold" style="font-size: 12px; width: 12%;">STATUS PROSEDUR</th>
-                            <th class="py-3 text-dark text-uppercase fw-bold" style="font-size: 12px; width: 12%;">CATATAN TU</th>
+                            <th class="py-3 text-dark text-uppercase fw-bold" style="font-size: 12px; width: 12%;">CATATAN Administrasi</th>
                             <th class="py-3 px-4 text-center text-dark text-uppercase fw-bold" style="font-size: 12px; width: 9%;">AKSI BERKAS</th>
                         </tr>
                     </thead>
@@ -85,9 +85,9 @@
 
                             <td class="py-3 text-center">
                                 @if(in_array(\App\Support\LsproType5Workflow::normalize($item->status), ['diajukan', 'verifikasi_tu'], true))
-                                    <span class="badge fw-medium px-3 py-2 border" style="background-color: #fffbeb; color: #d97706; border-color: #fde68a !important; border-radius: 6px; font-size: 11px;">Menunggu TU</span>
+                                    <span class="badge fw-medium px-3 py-2 border" style="background-color: #fffbeb; color: #d97706; border-color: #fde68a !important; border-radius: 6px; font-size: 11px;">Menunggu Administrasi</span>
                                 @elseif(\App\Support\LsproType5Workflow::normalize($item->status) === 'perjanjian')
-                                    <span class="badge fw-medium px-3 py-2" style="background-color: #dcfce7; color: #16a34a; border-radius: 6px; font-size: 11px;">Lolos Verifikasi TU</span>
+                                    <span class="badge fw-medium px-3 py-2" style="background-color: #dcfce7; color: #16a34a; border-radius: 6px; font-size: 11px;">Lolos Verifikasi Administrasi</span>
                                 @elseif(\App\Support\LsproType5Workflow::normalize($item->status) === 'perbaikan')
                                     <span class="badge fw-medium px-3 py-2" style="background-color: #fef2f2; color: #b91c1c; border-radius: 6px; font-size: 11px;">Masa Perbaikan</span>
                                 @elseif(\App\Support\LsproType5Workflow::normalize($item->status) === 'proses_audit')

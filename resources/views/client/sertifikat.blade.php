@@ -7,7 +7,7 @@
     
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h2 class="fw-bold mb-1" style="color: #0f172a; font-size: 24px;">Sertifikat SPPT SNI</h2>
+            <h2 class="fw-bold mb-1" style="color: #0f172a; font-size: 24px;">Sertifikat Sertifikat Kesesuaian SNI</h2>
             <p class="text-muted mb-0" style="font-size: 14px;">Daftar sertifikat produk yang telah diterbitkan oleh LSPro BRMP SDLP.</p>
         </div>
     </div>
@@ -55,12 +55,12 @@
                                     @endif
                                 </td>
                                 <td class="pe-4 py-3 text-end">
-                                    <a href="{{ route('pengajuan.workflow', $sertifikat->id) }}" class="btn btn-sm btn-light border fw-semibold px-3 me-2" style="border-radius: 8px;">
+                                    <a href="{{ route('aktivitas.show', $sertifikat->id) }}" class="btn btn-sm btn-light border fw-semibold px-3 me-2" style="border-radius: 8px;">
                                         <i class="fa-solid fa-eye me-1"></i> Detail
                                     </a>
-                                    <button class="btn btn-sm fw-semibold px-3" style="background: #16a34a; color: white; border-radius: 8px; border: none;">
+                                    <a href="{{ route('sertifikat.cetak', $sertifikat->id) }}" target="_blank" class="btn btn-sm fw-semibold px-3" style="background: #16a34a; color: white; border-radius: 8px; border: none; text-decoration: none;">
                                         <i class="fa-solid fa-download me-1"></i> PDF
-                                    </button>
+                                    </a>
                                 </td>
                             </tr>
                         @empty
@@ -69,7 +69,7 @@
                                     <div class="d-flex flex-column align-items-center">
                                         <i class="fa-solid fa-certificate mb-3" style="font-size: 48px; color: #cbd5e1;"></i>
                                         <h6 class="fw-bold text-dark">Belum Ada Sertifikat</h6>
-                                        <p class="text-muted" style="font-size: 13px; max-width: 400px;">Anda belum memiliki sertifikat SPPT SNI yang aktif. Sertifikat akan muncul di sini setelah proses sertifikasi Anda selesai disetujui.</p>
+                                        <p class="text-muted" style="font-size: 13px; max-width: 400px;">Anda belum memiliki sertifikat Sertifikat Kesesuaian SNI yang aktif. Sertifikat akan muncul di sini setelah proses sertifikasi Anda selesai disetujui.</p>
                                     </div>
                                 </td>
                             </tr>
@@ -81,3 +81,4 @@
     </div>
 </div>
 @endsection
+

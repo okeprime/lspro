@@ -113,7 +113,7 @@
 @section('content')
 <div class="container-fluid py-4">
     <div style="margin-bottom: 30px; text-align: center;">
-        <h2 style="color: #1e293b; font-weight: 700;">Alur Pengajuan Sertifikasi SPPT SNI</h2>
+        <h2 style="color: #1e293b; font-weight: 700;">Alur Pengajuan Sertifikasi Sertifikat Kesesuaian SNI</h2>
         <p style="color: #64748b; font-size: 15px; margin-top: 5px; max-width: 600px; margin-left: auto; margin-right: auto;">
             Ikuti panduan interaktif berikut untuk memilih jenis layanan yang sesuai dengan kebutuhan Anda.
         </p>
@@ -169,7 +169,7 @@
                             <i class="fa-solid fa-file-circle-plus" style="color: #198754; font-size: 24px;"></i>
                         </div>
                         <h4 style="font-size: 18px; color: #1e293b; font-weight: 700; margin-bottom: 8px;">Pengajuan Baru</h4>
-                        <p style="color: #64748b; font-size: 13px; line-height: 1.5; margin-bottom: 0;">Sertifikasi awal SPPT SNI untuk produk baru.</p>
+                        <p style="color: #64748b; font-size: 13px; line-height: 1.5; margin-bottom: 0;">Sertifikasi awal Sertifikat Kesesuaian SNI untuk produk baru.</p>
                     </div>
                 </div>
             </div>
@@ -239,7 +239,7 @@
                 <div class="detail-box" id="detail-box-container">
                     <div id="info-1" class="service-info" style="display: none;">
                         <h3 style="color: #198754; font-weight: 700;"><i class="fa-solid fa-file-circle-plus me-2"></i> Pengajuan Sertifikasi Baru</h3>
-                        <p class="text-muted mt-3">Anda memilih untuk mendaftarkan produk baru untuk mendapatkan SPPT SNI. Proses ini meliputi evaluasi dokumen, audit pabrik, dan pengujian sampel.</p>
+                        <p class="text-muted mt-3">Anda memilih untuk mendaftarkan produk baru untuk mendapatkan Sertifikat Kesesuaian SNI. Proses ini meliputi evaluasi dokumen, audit pabrik, dan pengujian sampel.</p>
                         <h5 class="mt-4 fw-bold">Persiapan Dokumen:</h5>
                         <ul class="text-muted" style="line-height: 1.8;">
                             <li>Akte Pendirian Perusahaan & Izin Usaha Industri (IUI)</li>
@@ -251,7 +251,7 @@
 
                     <div id="info-2" class="service-info" style="display: none;">
                         <h3 style="color: #0d6efd; font-weight: 700;"><i class="fa-solid fa-shield-halved me-2"></i> Survailen</h3>
-                        <p class="text-muted mt-3">Anda memilih layanan Survailen. Layanan ini diwajibkan bagi perusahaan yang telah memiliki SPPT SNI aktif untuk memastikan konsistensi mutu produk.</p>
+                        <p class="text-muted mt-3">Anda memilih layanan Survailen. Layanan ini diwajibkan bagi perusahaan yang telah memiliki Sertifikat Kesesuaian SNI aktif untuk memastikan konsistensi mutu produk.</p>
                         <h5 class="mt-4 fw-bold">Ketentuan:</h5>
                         <ul class="text-muted" style="line-height: 1.8;">
                             <li>Survailen dilakukan sekurang-kurangnya 1 (satu) kali dalam setahun.</li>
@@ -265,7 +265,7 @@
                         <h5 class="mt-4 fw-bold">Ketentuan:</h5>
                         <ul class="text-muted" style="line-height: 1.8;">
                             <li>Diajukan minimal 3 bulan sebelum masa berlaku sertifikat habis.</li>
-                            <li>Melampirkan sertifikat SPPT SNI yang lama.</li>
+                            <li>Melampirkan Sertifikat Kesesuaian SNI yang lama.</li>
                         </ul>
                     </div>
 

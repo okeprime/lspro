@@ -160,13 +160,13 @@
     <div class="row g-4 mb-5">
 
         {{-- Sertifikasi Baru --}}
-        <div class="col-md-4 gateway-col">
+        <div class="col-md-6 gateway-col">
             <a href="{{ route('pengajuan.sertifikasi') }}" class="gateway-card" style="--card-accent: #0f766e;">
                 <div class="gateway-icon" style="background: #ccfbf1;">
                     <i class="fa-solid fa-award" style="color: #0f766e;"></i>
                 </div>
                 <h3>Sertifikasi Baru</h3>
-                <p>Pengajuan sertifikasi SPPT SNI pertama kali untuk produk/merek yang belum pernah bersertifikat. Berlaku untuk produk pupuk anorganik dan organik.</p>
+                <p>Pengajuan sertifikasi Sertifikat Kesesuaian SNI pertama kali untuk produk/merek yang belum pernah bersertifikat. Berlaku untuk produk pupuk anorganik dan organik.</p>
                 <span class="btn-gateway" style="background: #0f766e; color: white;">
                     Mulai Pengajuan <i class="fa-solid fa-arrow-right"></i>
                 </span>
@@ -174,29 +174,15 @@
         </div>
 
         {{-- Resertifikasi --}}
-        <div class="col-md-4 gateway-col">
+        <div class="col-md-6 gateway-col">
             <a href="{{ route('pengajuan.resertifikasi') }}" class="gateway-card" style="--card-accent: #0369a1;">
                 <div class="gateway-icon" style="background: #e0f2fe;">
                     <i class="fa-solid fa-rotate" style="color: #0369a1;"></i>
                 </div>
                 <h3>Resertifikasi</h3>
-                <p>Perpanjangan atau pembaruan sertifikat SPPT SNI yang telah habis masa berlakunya atau karena terjadi perubahan signifikan pada produk/proses produksi.</p>
+                <p>Perpanjangan atau pembaruan Sertifikat Kesesuaian SNI yang telah habis masa berlakunya atau karena terjadi perubahan signifikan pada produk/proses produksi.</p>
                 <span class="btn-gateway" style="background: #0369a1; color: white;">
                     Mulai Resertifikasi <i class="fa-solid fa-arrow-right"></i>
-                </span>
-            </a>
-        </div>
-
-        {{-- Survailen --}}
-        <div class="col-md-4 gateway-col">
-            <a href="{{ route('pengajuan.survailen') }}" class="gateway-card" style="--card-accent: #7c3aed;">
-                <div class="gateway-icon" style="background: #ede9fe;">
-                    <i class="fa-solid fa-magnifying-glass-chart" style="color: #7c3aed;"></i>
-                </div>
-                <h3>Survailen</h3>
-                <p>Pemantauan berkala terhadap konsistensi pemenuhan persyaratan sertifikasi. Jadwal survailen ditetapkan oleh LSPro dan Anda perlu mengunggah dokumen pendukung.</p>
-                <span class="btn-gateway" style="background: #7c3aed; color: white;">
-                    Lihat Jadwal <i class="fa-solid fa-arrow-right"></i>
                 </span>
             </a>
         </div>
@@ -241,3 +227,4 @@
 
 </div>
 @endsection
+
